@@ -1,0 +1,45 @@
+2025-07-15 04:32:12,052 - progressive_test - INFO - === Starting Progressive GUI Test ===
+2025-07-15 04:32:12,053 - progressive_test - INFO - STEP 1: Creating basic GUI framework...
+2025-07-15 04:32:12,277 - progressive_test - INFO - Basic GUI created successfully!
+2025-07-15 04:32:12,277 - progressive_test - INFO - STEP 1: SUCCESS - Basic GUI created
+2025-07-15 04:32:12,298 - progressive_test - INFO - Progressive test GUI ready!
+2025-07-15 04:32:12,313 - progressive_test - INFO - Click test buttons to run individual components.
+2025-07-15 04:32:12,320 - progressive_test - INFO - Watch for any that cause freezing or errors.
+2025-07-15 04:32:14,869 - progressive_test - INFO - TESTING: Audio device enumeration...
+2025-07-15 04:32:15,204 - progressive_test - INFO - SUCCESS: sounddevice imported
+2025-07-15 04:32:15,204 - progressive_test - INFO - SUCCESS: Found 52 audio devices
+2025-07-15 04:32:15,206 - progressive_test - INFO -   Device 0: Microsoft Sound Mapper - Input
+2025-07-15 04:32:15,206 - progressive_test - INFO -   Device 1: Microphone (Chat-Audeze Maxwell
+2025-07-15 04:32:15,207 - progressive_test - INFO -   Device 2: Microphone (Iriun Webcam)
+2025-07-15 04:32:15,207 - progressive_test - INFO - SUCCESS: Default input device: Microphone (Chat-Audeze Maxwell
+2025-07-15 04:32:17,426 - progressive_test - INFO - TESTING: Database initialization...
+2025-07-15 04:32:17,440 - progressive_test - INFO - SUCCESS: Database modules imported
+2025-07-15 04:32:17,441 - progressive_test - INFO - SUCCESS: Database instance created
+2025-07-15 04:32:17,458 - progressive_test - INFO - SUCCESS: Test record added to database
+2025-07-15 04:32:17,462 - progressive_test - INFO - SUCCESS: Retrieved 1 records
+2025-07-15 04:32:19,301 - progressive_test - INFO - TESTING: File system permissions...
+2025-07-15 04:32:19,305 - progressive_test - INFO - Config path: C:\Users\kaust\PycharmProjects\WhisperKey\config.yaml
+2025-07-15 04:32:19,307 - progressive_test - INFO - SUCCESS: Config file readable
+2025-07-15 04:32:19,310 - progressive_test - INFO - SUCCESS: Log directory created/accessible: C:\Users\kaust\AppData\Local\WhisperKey\logs
+2025-07-15 04:32:19,313 - progressive_test - INFO - SUCCESS: Temporary file created: C:\Users\kaust\AppData\Local\Temp\tmpk6xgd454
+2025-07-15 04:32:20,760 - progressive_test - INFO - TESTING: System tray icon...
+2025-07-15 04:32:20,781 - progressive_test - INFO - SUCCESS: Tray icon libraries imported
+2025-07-15 04:32:20,783 - progressive_test - INFO - SUCCESS: Test icon image created
+2025-07-15 04:32:20,786 - progressive_test - INFO - SUCCESS: Tray icon components ready (not activated)
+2025-07-15 04:32:21,700 - progressive_test - INFO - TESTING: Background threading...
+2025-07-15 04:32:21,703 - progressive_test - INFO - SUCCESS: Background thread started
+2025-07-15 04:32:21,806 - progressive_test - INFO - SUCCESS: Thread result: Thread completed
+2025-07-15 04:32:21,809 - progressive_test - INFO - SUCCESS: Thread joined successfully
+2025-07-15 04:32:23,444 - progressive_test - INFO - TESTING: Hotkey registration...
+2025-07-15 04:32:23,449 - progressive_test - INFO - SUCCESS: Keyboard library imported
+2025-07-15 04:32:23,452 - progressive_test - INFO - SUCCESS: Hotkey string parsed: ctrl+alt+t
+2025-07-15 04:32:23,455 - progressive_test - INFO - SUCCESS: Hotkey system ready (not registered)
+2025-07-15 04:32:27,142 - progressive_test - INFO - TESTING: Full integration simulation...
+2025-07-15 04:32:27,863 - progressive_test - INFO - SUCCESS: Main app module imported
+2025-07-15 04:32:27,865 - progressive_test - INFO - SUCCESS: All imports successful
+2025-07-15 04:32:27,868 - progressive_test - INFO - 
+=== TEST SUMMARY ===
+2025-07-15 04:32:27,932 - progressive_test - INFO - 
+Components loaded: basic_gui, audio_devices, database, file_permissions, tray_icon, threading, hotkeys
+2025-07-15 04:32:27,934 - progressive_test - INFO - Overall: 6/6 tests passed
+2025-07-15 04:36:32,641 - progressive_test - INFO - Window close requested

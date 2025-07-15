@@ -1,0 +1,21 @@
+# Core dependencies
+python-dotenv==1.0.0
+pyyaml==6.0.1
+openai>=1.30.0
+pyperclip==1.8.2
+
+# Audio processing
+sounddevice==0.4.6
+numpy==1.26.3
+scipy==1.12.0
+vosk==0.3.45
+
+# GUI and system integration
+pystray==0.19.4
+Pillow==10.2.0
+keyboard==0.13.5
+win10toast==0.9
+rich==13.7.0
+
+# Packaging
+pyinstaller==6.3.0

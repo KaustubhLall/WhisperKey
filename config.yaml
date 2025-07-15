@@ -1,0 +1,16 @@
+audio_device_index: 1
+buffer_duration: 2.0
+channels: 1
+hotkey: "\x14+ctrl_l"
+sample_rate: 16000
+transcription:
+  engine: openai
+  local_model_path: null
+  model: gpt-4o-mini-transcribe
+tray_icon:
+  idle_color: gray
+  recording_color: red
+  transcribing_color: blue
+vosk:
+  model_path: null
+  model_url: https://alphacephei.com/vosk/models/vosk-model-en-us-0.22.zip

@@ -1,0 +1,126 @@
+2025-07-15 04:29:57,762 - simple_gui - INFO - === Starting Simple GUI Test ===
+2025-07-15 04:29:57,762 - simple_gui - INFO - Creating SimpleWhisperKeyGUI instance...
+2025-07-15 04:29:57,762 - simple_gui - INFO - === Starting SimpleWhisperKeyGUI initialization ===
+2025-07-15 04:29:57,762 - simple_gui - INFO - Step 1: Creating tkinter window
+2025-07-15 04:29:57,762 - simple_gui - DEBUG - Creating Tk() window...
+2025-07-15 04:29:57,861 - simple_gui - DEBUG - SUCCESS: tk.Tk() created
+2025-07-15 04:29:57,861 - simple_gui - DEBUG - Setting window title...
+2025-07-15 04:29:57,861 - simple_gui - DEBUG - SUCCESS: Title set
+2025-07-15 04:29:57,861 - simple_gui - DEBUG - Setting window geometry...
+2025-07-15 04:29:57,861 - simple_gui - DEBUG - SUCCESS: Geometry set
+2025-07-15 04:29:57,870 - simple_gui - DEBUG - Setting window properties...
+2025-07-15 04:29:57,870 - simple_gui - DEBUG - SUCCESS: Window properties set
+2025-07-15 04:29:57,870 - simple_gui - DEBUG - Setting window protocol...
+2025-07-15 04:29:57,870 - simple_gui - DEBUG - SUCCESS: Protocol set
+2025-07-15 04:29:57,870 - simple_gui - DEBUG - Initially hiding window...
+2025-07-15 04:29:57,870 - simple_gui - DEBUG - SUCCESS: Window hidden
+2025-07-15 04:29:57,870 - simple_gui - INFO - Step 1: SUCCESS - Window created
+2025-07-15 04:29:57,870 - simple_gui - INFO - Step 2: Creating widgets
+2025-07-15 04:29:57,870 - simple_gui - DEBUG - Creating main frame...
+2025-07-15 04:29:57,900 - simple_gui - DEBUG - SUCCESS: Main frame created and placed
+2025-07-15 04:29:57,900 - simple_gui - DEBUG - SUCCESS: Grid configured
+2025-07-15 04:29:57,901 - simple_gui - DEBUG - SUCCESS: Title label created
+2025-07-15 04:29:57,902 - simple_gui - DEBUG - SUCCESS: Status label created
+2025-07-15 04:29:57,903 - simple_gui - DEBUG - SUCCESS: Test button created
+2025-07-15 04:29:57,904 - simple_gui - DEBUG - SUCCESS: Toggle button created
+2025-07-15 04:29:57,904 - simple_gui - DEBUG - All widgets created successfully
+2025-07-15 04:29:57,904 - simple_gui - INFO - Step 2: SUCCESS - Widgets created
+2025-07-15 04:29:57,904 - simple_gui - INFO - === SimpleWhisperKeyGUI initialization complete ===
+2025-07-15 04:29:57,904 - simple_gui - INFO - SUCCESS: GUI instance created
+2025-07-15 04:29:57,904 - simple_gui - INFO - Showing GUI window...
+2025-07-15 04:29:57,905 - simple_gui - INFO - Attempting to show window...
+2025-07-15 04:29:57,905 - simple_gui - DEBUG - Calling deiconify()...
+2025-07-15 04:29:57,905 - simple_gui - DEBUG - SUCCESS: deiconify() called
+2025-07-15 04:29:57,905 - simple_gui - DEBUG - Calling lift()...
+2025-07-15 04:29:57,987 - simple_gui - DEBUG - SUCCESS: lift() called
+2025-07-15 04:29:57,987 - simple_gui - DEBUG - Calling focus_force()...
+2025-07-15 04:29:57,987 - simple_gui - DEBUG - SUCCESS: focus_force() called
+2025-07-15 04:29:57,988 - simple_gui - INFO - Window shown successfully
+2025-07-15 04:29:57,988 - simple_gui - DEBUG - Calling update_idletasks()...
+2025-07-15 04:29:58,011 - simple_gui - DEBUG - SUCCESS: update_idletasks() called
+2025-07-15 04:29:58,011 - simple_gui - INFO - SUCCESS: GUI window shown
+2025-07-15 04:29:58,011 - simple_gui - INFO - GUI is now running. Window should be visible.
+2025-07-15 04:29:58,011 - simple_gui - INFO - Check if window appears. Press Ctrl+C to exit.
+2025-07-15 04:30:00,350 - simple_gui - INFO - Test button clicked!
+2025-07-15 04:30:00,350 - simple_gui - DEBUG - Status label updated successfully
+2025-07-15 04:30:03,915 - simple_gui - INFO - Test button clicked!
+2025-07-15 04:30:03,915 - simple_gui - DEBUG - Status label updated successfully
+2025-07-15 04:30:04,339 - simple_gui - INFO - Test button clicked!
+2025-07-15 04:30:04,339 - simple_gui - DEBUG - Status label updated successfully
+2025-07-15 04:30:04,528 - simple_gui - INFO - Test button clicked!
+2025-07-15 04:30:04,528 - simple_gui - DEBUG - Status label updated successfully
+2025-07-15 04:30:04,726 - simple_gui - INFO - Test button clicked!
+2025-07-15 04:30:04,726 - simple_gui - DEBUG - Status label updated successfully
+2025-07-15 04:30:04,922 - simple_gui - INFO - Test button clicked!
+2025-07-15 04:30:04,922 - simple_gui - DEBUG - Status label updated successfully
+2025-07-15 04:30:05,089 - simple_gui - INFO - Test button clicked!
+2025-07-15 04:30:05,089 - simple_gui - DEBUG - Status label updated successfully
+2025-07-15 04:30:06,053 - simple_gui - INFO - Window close requested
+2025-07-15 04:30:06,054 - simple_gui - INFO - Attempting to hide window...
+2025-07-15 04:30:06,054 - simple_gui - DEBUG - Calling withdraw()...
+2025-07-15 04:30:06,068 - simple_gui - DEBUG - SUCCESS: withdraw() called
+2025-07-15 04:30:06,068 - simple_gui - INFO - Window hidden successfully
+2025-07-15 04:36:35,672 - simple_gui - INFO - Interrupted by user
+2025-07-15 04:36:35,672 - simple_gui - INFO - Cleaning up...
+2025-07-15 04:36:35,672 - simple_gui - INFO - Starting cleanup...
+2025-07-15 04:36:35,672 - simple_gui - DEBUG - Destroying window...
+2025-07-15 04:36:35,675 - simple_gui - DEBUG - SUCCESS: Window destroyed
+2025-07-15 04:36:35,676 - simple_gui - INFO - Cleanup completed successfully
+2025-07-15 04:36:35,676 - simple_gui - INFO - === Simple GUI Test Complete ===
+2025-07-15 04:36:36,348 - simple_gui - INFO - === Starting Simple GUI Test ===
+2025-07-15 04:36:36,348 - simple_gui - INFO - Creating SimpleWhisperKeyGUI instance...
+2025-07-15 04:36:36,348 - simple_gui - INFO - === Starting SimpleWhisperKeyGUI initialization ===
+2025-07-15 04:36:36,348 - simple_gui - INFO - Step 1: Creating tkinter window
+2025-07-15 04:36:36,348 - simple_gui - DEBUG - Creating Tk() window...
+2025-07-15 04:36:36,439 - simple_gui - DEBUG - SUCCESS: tk.Tk() created
+2025-07-15 04:36:36,440 - simple_gui - DEBUG - Setting window title...
+2025-07-15 04:36:36,440 - simple_gui - DEBUG - SUCCESS: Title set
+2025-07-15 04:36:36,440 - simple_gui - DEBUG - Setting window geometry...
+2025-07-15 04:36:36,440 - simple_gui - DEBUG - SUCCESS: Geometry set
+2025-07-15 04:36:36,440 - simple_gui - DEBUG - Setting window properties...
+2025-07-15 04:36:36,440 - simple_gui - DEBUG - SUCCESS: Window properties set
+2025-07-15 04:36:36,440 - simple_gui - DEBUG - Setting window protocol...
+2025-07-15 04:36:36,440 - simple_gui - DEBUG - SUCCESS: Protocol set
+2025-07-15 04:36:36,440 - simple_gui - DEBUG - Initially hiding window...
+2025-07-15 04:36:36,440 - simple_gui - DEBUG - SUCCESS: Window hidden
+2025-07-15 04:36:36,440 - simple_gui - INFO - Step 1: SUCCESS - Window created
+2025-07-15 04:36:36,440 - simple_gui - INFO - Step 2: Creating widgets
+2025-07-15 04:36:36,440 - simple_gui - DEBUG - Creating main frame...
+2025-07-15 04:36:36,469 - simple_gui - DEBUG - SUCCESS: Main frame created and placed
+2025-07-15 04:36:36,469 - simple_gui - DEBUG - SUCCESS: Grid configured
+2025-07-15 04:36:36,472 - simple_gui - DEBUG - SUCCESS: Title label created
+2025-07-15 04:36:36,472 - simple_gui - DEBUG - SUCCESS: Status label created
+2025-07-15 04:36:36,473 - simple_gui - DEBUG - SUCCESS: Test button created
+2025-07-15 04:36:36,473 - simple_gui - DEBUG - SUCCESS: Toggle button created
+2025-07-15 04:36:36,473 - simple_gui - DEBUG - All widgets created successfully
+2025-07-15 04:36:36,474 - simple_gui - INFO - Step 2: SUCCESS - Widgets created
+2025-07-15 04:36:36,474 - simple_gui - INFO - === SimpleWhisperKeyGUI initialization complete ===
+2025-07-15 04:36:36,474 - simple_gui - INFO - SUCCESS: GUI instance created
+2025-07-15 04:36:36,474 - simple_gui - INFO - Showing GUI window...
+2025-07-15 04:36:36,475 - simple_gui - INFO - Attempting to show window...
+2025-07-15 04:36:36,475 - simple_gui - DEBUG - Calling deiconify()...
+2025-07-15 04:36:36,475 - simple_gui - DEBUG - SUCCESS: deiconify() called
+2025-07-15 04:36:36,475 - simple_gui - DEBUG - Calling lift()...
+2025-07-15 04:36:36,563 - simple_gui - DEBUG - SUCCESS: lift() called
+2025-07-15 04:36:36,563 - simple_gui - DEBUG - Calling focus_force()...
+2025-07-15 04:36:36,563 - simple_gui - DEBUG - SUCCESS: focus_force() called
+2025-07-15 04:36:36,564 - simple_gui - INFO - Window shown successfully
+2025-07-15 04:36:36,564 - simple_gui - DEBUG - Calling update_idletasks()...
+2025-07-15 04:36:36,586 - simple_gui - DEBUG - SUCCESS: update_idletasks() called
+2025-07-15 04:36:36,586 - simple_gui - INFO - SUCCESS: GUI window shown
+2025-07-15 04:36:36,586 - simple_gui - INFO - GUI is now running. Window should be visible.
+2025-07-15 04:36:36,586 - simple_gui - INFO - Check if window appears. Press Ctrl+C to exit.
+2025-07-15 04:36:38,608 - simple_gui - INFO - Test button clicked!
+2025-07-15 04:36:38,609 - simple_gui - DEBUG - Status label updated successfully
+2025-07-15 04:36:39,990 - simple_gui - INFO - Window close requested
+2025-07-15 04:36:39,991 - simple_gui - INFO - Attempting to hide window...
+2025-07-15 04:36:39,991 - simple_gui - DEBUG - Calling withdraw()...
+2025-07-15 04:36:40,006 - simple_gui - DEBUG - SUCCESS: withdraw() called
+2025-07-15 04:36:40,006 - simple_gui - INFO - Window hidden successfully
+2025-07-15 04:37:08,027 - simple_gui - INFO - Interrupted by user
+2025-07-15 04:37:08,027 - simple_gui - INFO - Cleaning up...
+2025-07-15 04:37:08,027 - simple_gui - INFO - Starting cleanup...
+2025-07-15 04:37:08,027 - simple_gui - DEBUG - Destroying window...
+2025-07-15 04:37:08,028 - simple_gui - DEBUG - SUCCESS: Window destroyed
+2025-07-15 04:37:08,028 - simple_gui - INFO - Cleanup completed successfully
+2025-07-15 04:37:08,028 - simple_gui - INFO - === Simple GUI Test Complete ===
