@@ -1,7 +1,13 @@
 audio_device_index: 1
 buffer_duration: 2.0
 channels: 1
-hotkey: "\x14+ctrl_l"
+cost_tracking:
+  alert_threshold: 10.0
+  auto_sync: true
+  currency: USD
+  enabled: true
+hotkey: ctrl+alt+enter
+realtime_hotkey: ctrl_l+tab
 sample_rate: 16000
 transcription:
   engine: openai
@@ -9,6 +15,7 @@ transcription:
   model: gpt-4o-mini-transcribe
 tray_icon:
   idle_color: gray
+  realtime_color: green
   recording_color: red
   transcribing_color: blue
 vosk:
