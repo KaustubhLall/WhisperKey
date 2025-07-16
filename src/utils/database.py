@@ -240,7 +240,10 @@ class TranscriptionDatabase:
                     hotkey_used=row['hotkey_used'],
                     text_length=row['text_length'],
                     language=row['language'],
-                    processing_time_ms=row['processing_time_ms']
+                    processing_time_ms=row['processing_time_ms'],
+                    input_tokens=row['input_tokens'] if 'input_tokens' in row.keys() else 0,
+                    output_tokens=row['output_tokens'] if 'output_tokens' in row.keys() else 0,
+                    cost=row['cost'] if 'cost' in row.keys() else 0.0
                 )
                 records.append(record)
 
@@ -270,7 +273,10 @@ class TranscriptionDatabase:
                     hotkey_used=row['hotkey_used'],
                     text_length=row['text_length'],
                     language=row['language'],
-                    processing_time_ms=row['processing_time_ms']
+                    processing_time_ms=row['processing_time_ms'],
+                    input_tokens=row['input_tokens'] if 'input_tokens' in row.keys() else 0,
+                    output_tokens=row['output_tokens'] if 'output_tokens' in row.keys() else 0,
+                    cost=row['cost'] if 'cost' in row.keys() else 0.0
                 )
                 records.append(record)
 

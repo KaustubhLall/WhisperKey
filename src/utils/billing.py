@@ -383,12 +383,18 @@ def cli_sync_costs(api_key: str, config: Dict) -> bool:
 
             # Show usage analytics
             analytics = usage_api.get_usage_analytics(30)
-            if "error" not in analytics:
+            if analytics and "error" not in analytics:
                 print(f"📊 Usage Analytics (Last 30 days):")
+                print(f"   Total Cost: ${analytics['total_cost']:.4f}")
                 print(f"   Total API Requests: {analytics['total_requests']:,}")
-                print(f"   Total Input Tokens: {analytics['total_input_tokens']:,}")
-                print(f"   Total Output Tokens: {analytics['total_output_tokens']:,}")
-                print(f"   Models Used: {len(analytics['models_used'])}")
+
+                # Check for token and model data
+                if 'total_input_tokens' in analytics:
+                    print(f"   Total Input Tokens: {analytics['total_input_tokens']:,}")
+                if 'total_output_tokens' in analytics:
+                    print(f"   Total Output Tokens: {analytics['total_output_tokens']:,}")
+                if 'models_used' in analytics:
+                    print(f"   Models Used: {len(analytics['models_used'])}")
 
             # Show recent cost breakdown
             print("\n📊 Recent cost breakdown:")
