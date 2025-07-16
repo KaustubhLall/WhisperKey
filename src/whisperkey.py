@@ -21,7 +21,7 @@ import pyperclip
 import sounddevice as sd
 import vosk
 import yaml
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 from dotenv import load_dotenv
 from pystray import Icon, Menu, MenuItem
 from rich.logging import RichHandler
@@ -31,6 +31,7 @@ from utils.complete_gui import CompleteWhisperKeyGUI
 # Import custom modules
 from utils.database import TranscriptionDatabase, TranscriptionRecord
 from utils.simple_realtime import SimpleRealtimeTranscriber
+from utils.cost_estimator import estimate_cost
 
 # Setup logging
 LOG_DIR = Path(os.getenv('LOCALAPPDATA')) / 'WhisperKey' / 'logs'
@@ -66,7 +67,7 @@ DEFAULT_CONFIG = {
     },
     'realtime': {
         'enabled': True,
-        'model': 'gpt-4o-mini-transcribe',  # Updated to use mini transcribe
+        'model': 'gpt-4o-mini-transcribe',
         'vad_threshold': 0.5,
         'prefix_padding_ms': 300,
         'silence_duration_ms': 500,
@@ -218,6 +219,25 @@ class AudioRecorder:
         except Exception as e:
             logger.error(f"Error processing recorded audio: {e}")
             return None
+
+    def get_audio_devices(self):
+        """Get list of available audio input devices."""
+        try:
+            devices = sd.query_devices()
+            input_devices = []
+            
+            for i, device in enumerate(devices):
+                if device['max_input_channels'] > 0:  # Only input devices
+                    input_devices.append({
+                        'index': i,
+                        'name': device['name'],
+                        'channels': device['max_input_channels']
+                    })
+            
+            return input_devices
+        except Exception as e:
+            logger.error(f"Error querying audio devices: {e}")
+            return []
 
     def cleanup(self):
         """Clean up audio resources."""
@@ -591,22 +611,32 @@ class WhisperKeyApp:
 
     @staticmethod
     def create_tray_icon_image(color):
-        """Create a colored circle image for the tray icon."""
+        """Create a more polished, modern icon for the tray."""
         width, height = 64, 64
-        image = Image.new('RGBA', (width, height), color=(0, 0, 0, 0))
-        dc = ImageDraw.Draw(image)
+        image = Image.new('RGBA', (width, height), (0, 0, 0, 0))  # Transparent background
+        draw = ImageDraw.Draw(image)
 
-        # Map color names to RGB
+        # Modern color palette
         color_map = {
-            'gray': (128, 128, 128),
-            'red': (255, 0, 0),
-            'blue': (0, 0, 255),
-            'green': (0, 255, 0),  # Add green for realtime
+            'gray': "#95A5A6",   # Asbestos
+            'red': "#E74C3C",    # Alizarin
+            'blue': "#3498DB",   # Peter River
+            'green': "#2ECC71", # Emerald
         }
-        rgb_color = color_map.get(color, (128, 128, 128))
+        bg_color = color_map.get(color, "#95A5A6")
 
-        # Draw a circle
-        dc.ellipse([8, 8, width - 8, height - 8], fill=rgb_color)
+        # Draw a rounded rectangle background
+        draw.rounded_rectangle((4, 4, width - 4, height - 4), radius=12, fill=bg_color)
+
+        # Draw a stylized 'W' for WhisperKey
+        try:
+            # Use a modern, common font if available
+            font = ImageFont.truetype("segoeui.ttf", 40)
+        except IOError:
+            font = ImageFont.load_default()
+
+        draw.text((width / 2, height / 2), "W", fill="#FFFFFF", font=font, anchor="mm")
+
         return image
 
     def setup_tray_icon(self):
@@ -790,7 +820,14 @@ class WhisperKeyApp:
                 pyperclip.copy(transcript)
                 logger.info(f"Transcription copied to clipboard: {transcript[:50]}...")
 
-                # Save to database
+                # Estimate tokens and cost
+                # A rough approximation: 1 token ~ 4 chars in English
+                # For audio, it's more complex, but we can use duration as a proxy for input.
+                # Let's assume 1 second of audio is roughly 50 tokens for this model.
+                input_tokens = int(recording_duration * 50)
+                output_tokens = len(transcript) // 4
+                cost = estimate_cost(input_tokens, output_tokens)
+
                 record = TranscriptionRecord(
                     timestamp=datetime.now().isoformat(),
                     text=transcript,
@@ -799,7 +836,10 @@ class WhisperKeyApp:
                     model=self.config['transcription']['model'],
                     audio_device=str(self.config.get('audio_device_index', 'default')),
                     hotkey_used=self.config['hotkey'],
-                    processing_time_ms=int((time.time() - recording_start_time) * 1000)
+                    processing_time_ms=int((time.time() - recording_start_time) * 1000),
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    cost=cost
                 )
 
                 record_id = self.db.add_transcription(record)

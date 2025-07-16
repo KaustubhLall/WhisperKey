@@ -24,6 +24,9 @@ class TranscriptionRecord:
     text_length: int = 0
     language: Optional[str] = None
     processing_time_ms: int = 0
+    input_tokens: int = 0
+    output_tokens: int = 0
+    cost: float = 0.0
 
 
 @dataclass
@@ -55,57 +58,26 @@ class TranscriptionDatabase:
             conn.execute('''
                          CREATE TABLE IF NOT EXISTS transcriptions
                          (
-                             id
-                             INTEGER
-                             PRIMARY
-                             KEY
-                             AUTOINCREMENT,
-                             timestamp
-                             TEXT
-                             NOT
-                             NULL,
-                             text
-                             TEXT
-                             NOT
-                             NULL,
-                             duration_seconds
-                             REAL
-                             NOT
-                             NULL,
-                             engine
-                             TEXT
-                             NOT
-                             NULL,
-                             model
-                             TEXT
-                             NOT
-                             NULL,
-                             confidence_score
-                             REAL,
-                             audio_device
-                             TEXT
-                             NOT
-                             NULL,
-                             hotkey_used
-                             TEXT
-                             NOT
-                             NULL,
-                             text_length
-                             INTEGER
-                             NOT
-                             NULL,
-                             language
-                             TEXT,
-                             processing_time_ms
-                             INTEGER
-                             NOT
-                             NULL,
-                             created_at
-                             DATETIME
-                             DEFAULT
-                             CURRENT_TIMESTAMP
+                             id INTEGER PRIMARY KEY AUTOINCREMENT,
+                             timestamp TEXT NOT NULL,
+                             text TEXT NOT NULL,
+                             duration_seconds REAL NOT NULL,
+                             engine TEXT NOT NULL,
+                             model TEXT NOT NULL,
+                             confidence_score REAL,
+                             audio_device TEXT NOT NULL,
+                             hotkey_used TEXT NOT NULL,
+                             text_length INTEGER NOT NULL,
+                             language TEXT,
+                             processing_time_ms INTEGER NOT NULL,
+                             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
                          )
                          ''')
+
+            # Add new columns for token and cost tracking if they don't exist
+            self._add_column_if_not_exists(conn, 'transcriptions', 'input_tokens', 'INTEGER DEFAULT 0')
+            self._add_column_if_not_exists(conn, 'transcriptions', 'output_tokens', 'INTEGER DEFAULT 0')
+            self._add_column_if_not_exists(conn, 'transcriptions', 'cost', 'REAL DEFAULT 0.0')
 
             # Create cost_history table for OpenAI billing tracking
             conn.execute('''
@@ -160,32 +132,41 @@ class TranscriptionDatabase:
                              ON cost_history(date)
                          ''')
 
+    def _add_column_if_not_exists(self, conn, table_name, column_name, column_type):
+        """Utility to add a column to a table if it doesn't exist."""
+        cursor = conn.execute(f'PRAGMA table_info({table_name})')
+        columns = [row[1] for row in cursor.fetchall()]
+        if column_name not in columns:
+            conn.execute(f'ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}')
+
     def add_transcription(self, record: TranscriptionRecord) -> int:
         """Add a new transcription record to the database"""
         if not record.timestamp:
             record.timestamp = datetime.now().isoformat()
 
-        record.text_length = len(record.text)
-
-        conn = None
         try:
-            conn = sqlite3.connect(self.db_path, timeout=30.0)
-            cursor = conn.execute('''
-                                  INSERT INTO transcriptions
-                                  (timestamp, text, duration_seconds, engine, model, confidence_score,
-                                   audio_device, hotkey_used, text_length, language, processing_time_ms)
-                                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                                  ''', (
-                                      record.timestamp, record.text, record.duration_seconds,
-                                      record.engine, record.model, record.confidence_score,
-                                      record.audio_device, record.hotkey_used, record.text_length,
-                                      record.language, record.processing_time_ms
-                                  ))
-
-            conn.commit()
-            record_id = cursor.lastrowid
-            return record_id
-
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.execute('''
+                                      INSERT INTO transcriptions
+                                      (timestamp, text, duration_seconds, engine, model, confidence_score, audio_device, hotkey_used, text_length, language, processing_time_ms, input_tokens, output_tokens, cost)
+                                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                      ''', (
+                    record.timestamp,
+                    record.text,
+                    record.duration_seconds,
+                    record.engine,
+                    record.model,
+                    record.confidence_score,
+                    record.audio_device,
+                    record.hotkey_used,
+                    record.text_length,
+                    record.language,
+                    record.processing_time_ms,
+                    record.input_tokens,
+                    record.output_tokens,
+                    record.cost
+                ))
+                return cursor.lastrowid
         except sqlite3.Error as e:
             print(f"Database error in add_transcription: {e}")
             return None
@@ -195,35 +176,37 @@ class TranscriptionDatabase:
 
     def get_recent_transcriptions(self, limit: int = 3) -> List[TranscriptionRecord]:
         """Get the most recent transcriptions"""
-        conn = None
         try:
-            conn = sqlite3.connect(self.db_path, timeout=30.0)
-            conn.row_factory = sqlite3.Row
-            cursor = conn.execute('''
-                                  SELECT *
-                                  FROM transcriptions
-                                  ORDER BY created_at DESC LIMIT ?
-                                  ''', (limit,))
+            with sqlite3.connect(self.db_path) as conn:
+                conn.row_factory = sqlite3.Row
+                cursor = conn.execute('''
+                                      SELECT * FROM transcriptions
+                                      ORDER BY timestamp DESC
+                                      LIMIT ?
+                                      ''', (limit,))
 
-            records = []
-            for row in cursor.fetchall():
-                record = TranscriptionRecord(
-                    id=row['id'],
-                    timestamp=row['timestamp'],
-                    text=row['text'],
-                    duration_seconds=row['duration_seconds'],
-                    engine=row['engine'],
-                    model=row['model'],
-                    confidence_score=row['confidence_score'],
-                    audio_device=row['audio_device'],
-                    hotkey_used=row['hotkey_used'],
-                    text_length=row['text_length'],
-                    language=row['language'],
-                    processing_time_ms=row['processing_time_ms']
-                )
-                records.append(record)
+                records = []
+                for row in cursor.fetchall():
+                    record = TranscriptionRecord(
+                        id=row['id'],
+                        timestamp=row['timestamp'],
+                        text=row['text'],
+                        duration_seconds=row['duration_seconds'],
+                        engine=row['engine'],
+                        model=row['model'],
+                        confidence_score=row['confidence_score'],
+                        audio_device=row['audio_device'],
+                        hotkey_used=row['hotkey_used'],
+                        text_length=row['text_length'],
+                        language=row['language'],
+                        processing_time_ms=row['processing_time_ms'],
+                        input_tokens=row['input_tokens'] if 'input_tokens' in row.keys() else 0,
+                        output_tokens=row['output_tokens'] if 'output_tokens' in row.keys() else 0,
+                        cost=row['cost'] if 'cost' in row.keys() else 0.0
+                    )
+                    records.append(record)
 
-            return records
+                return records
 
         except sqlite3.Error as e:
             print(f"Database error in get_recent_transcriptions: {e}")

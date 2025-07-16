@@ -6,8 +6,10 @@ cost_tracking:
   auto_sync: true
   currency: USD
   enabled: true
-hotkey: ctrl+alt+enter
-realtime_hotkey: ctrl_l+tab
+hotkey: ctrl_l+tab
+realtime:
+  model: gpt-4o-mini-transcribe
+realtime_hotkey: ctrl_l+shift
 sample_rate: 16000
 transcription:
   engine: openai

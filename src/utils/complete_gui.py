@@ -14,6 +14,7 @@ import pyperclip
 from pynput import keyboard, mouse
 
 from .billing import OpenAIBillingAPI
+from .ui_styles import AppStyles
 # Import WhisperKey components (all tested to work individually)
 from .database import TranscriptionDatabase
 
@@ -129,6 +130,7 @@ class CompleteWhisperKeyGUI:
 
         # Initialize GUI
         self.create_window()
+        AppStyles.apply(self.window)
         logger.info("=== Complete WhisperKey GUI Initialized ===")
 
     def create_window(self):
@@ -138,9 +140,8 @@ class CompleteWhisperKeyGUI:
         try:
             # Use direct Tk() approach that worked in progressive test
             self.window = tk.Tk()
-            self.window.title("WhisperKey - Voice Transcription Assistant")
-            self.window.geometry("900x650")
-            self.window.resizable(True, True)
+            self.window.title("WhisperKey")
+            self.window.geometry("800x650")
             self.window.minsize(700, 500)
 
             # Configure modern style
@@ -221,23 +222,26 @@ class CompleteWhisperKeyGUI:
 
     def create_header_section(self, parent, row):
         """Create header section with title and status"""
-        header_frame = ttk.Frame(parent)
-        header_frame.grid(row=row, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
-        header_frame.columnconfigure(1, weight=1)
+        header_frame = ttk.Frame(parent, padding=(10, 20))
+        header_frame.grid(row=row, column=0, columnspan=2, sticky="ew")
+        parent.grid_columnconfigure(0, weight=1)
 
-        # Title and icon
-        title_label = ttk.Label(header_frame, text="WhisperKey",
-                                font=("Segoe UI", 18, "bold"))
-        title_label.grid(row=0, column=0, sticky=tk.W)
+        # Title
+        title_label = ttk.Label(
+            header_frame,
+            text="WhisperKey",
+            style="Header.TLabel"
+        )
+        title_label.pack(side="left", anchor="w")
 
-        # Status display (right aligned)
-        status_frame = ttk.Frame(header_frame)
-        status_frame.grid(row=0, column=1, sticky=tk.E)
-
-        ttk.Label(status_frame, text="Status:", font=("Segoe UI", 10)).grid(row=0, column=0, padx=(0, 5))
-        self.status_label = ttk.Label(status_frame, text="Ready",
-                                      font=("Segoe UI", 10, "bold"))
-        self.status_label.grid(row=0, column=1)
+        # Status Label
+        self.status_label = ttk.Label(
+            header_frame,
+            text="Status: Idle",
+            style="Status.TLabel",
+            anchor="e"
+        )
+        self.status_label.pack(side="right", anchor="e")
 
         return row + 1
 
@@ -301,154 +305,153 @@ class CompleteWhisperKeyGUI:
         self.overview_listbox.bind("<Double-Button-1>", self.copy_selected_transcription)
 
     def create_settings_tab(self):
-        """Create settings configuration tab"""
-        tab_frame = ttk.Frame(self.notebook)
-        self.notebook.add(tab_frame, text="Settings")
+        """Create settings configuration tab with improved styling."""
+        settings_frame = ttk.Frame(self.notebook, padding="20")
+        self.notebook.add(settings_frame, text='Settings')
+        settings_frame.grid_columnconfigure(0, weight=1)
 
-        # Configure scrollable frame
-        canvas = tk.Canvas(tab_frame)
-        scrollbar = ttk.Scrollbar(tab_frame, orient="vertical", command=canvas.yview)
-        scrollable_frame = ttk.Frame(canvas)
+        # --- General Settings ---
+        general_frame = ttk.LabelFrame(settings_frame, text="General", padding="15")
+        general_frame.grid(row=0, column=0, padx=5, pady=10, sticky="ew")
+        general_frame.grid_columnconfigure(1, weight=1)
 
-        scrollable_frame.bind(
-            "<Configure>",
-            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
-        )
+        # --- Hotkey Settings ---
+        hotkey_frame = ttk.LabelFrame(settings_frame, text="Hotkeys", padding="15")
+        hotkey_frame.grid(row=1, column=0, padx=5, pady=10, sticky="ew")
+        hotkey_frame.grid_columnconfigure(1, weight=1)
 
-        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
-        canvas.configure(yscrollcommand=scrollbar.set)
+        ttk.Label(hotkey_frame, text="Record Hotkey:").grid(row=0, column=0, sticky="w", pady=5)
+        self.hotkey_entry = ttk.Entry(hotkey_frame)
+        self.hotkey_entry.insert(0, self.app.config.get('hotkey', ''))
+        self.hotkey_entry.grid(row=0, column=1, padx=5, sticky="ew")
+        self.record_hotkey_button = ttk.Button(hotkey_frame, text="Record", style="TButton", command=self.record_hotkey)
+        self.record_hotkey_button.grid(row=0, column=2, padx=5)
 
-        # Pack canvas and scrollbar
-        canvas.pack(side="left", fill="both", expand=True)
-        scrollbar.pack(side="right", fill="y")
+        ttk.Label(hotkey_frame, text="Realtime Hotkey:").grid(row=1, column=0, sticky="w", pady=5)
+        self.realtime_hotkey_entry = ttk.Entry(hotkey_frame)
+        self.realtime_hotkey_entry.insert(0, self.app.config.get('realtime_hotkey', ''))
+        self.realtime_hotkey_entry.grid(row=1, column=1, padx=5, sticky="ew")
+        self.record_realtime_hotkey_button = ttk.Button(hotkey_frame, text="Record", style="TButton", command=self.record_realtime_hotkey)
+        self.record_realtime_hotkey_button.grid(row=1, column=2, padx=5)
 
-        # Settings content
-        settings_content = ttk.Frame(scrollable_frame, padding="20")
-        settings_content.pack(fill="both", expand=True)
-        settings_content.columnconfigure(1, weight=1)
+        # --- Audio Device Settings ---
+        audio_frame = ttk.LabelFrame(settings_frame, text="Audio", padding="15")
+        audio_frame.grid(row=2, column=0, padx=5, pady=10, sticky="ew")
+        audio_frame.grid_columnconfigure(0, weight=1)
 
-        current_row = 0
+        ttk.Label(audio_frame, text="Input Device:").grid(row=0, column=0, sticky="w")
 
-        # Hotkey settings
-        hotkey_frame = ttk.LabelFrame(settings_content, text="Hotkey Configuration", padding="15")
-        hotkey_frame.grid(row=current_row, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 15))
-        hotkey_frame.columnconfigure(1, weight=1)
+        self.audio_device_menu = ttk.Combobox(audio_frame)
+        self.audio_device_menu.grid(row=0, column=1, padx=5, pady=5, sticky="ew")
+        self.audio_device_menu.bind('<<ComboboxSelected>>', self.on_audio_device_select)
+        self.refresh_audio_devices()
 
-        # Recording hotkey
-        ttk.Label(hotkey_frame, text="Recording Hotkey:").grid(row=0, column=0, sticky=tk.W, padx=(0, 10), pady=5)
 
-        hotkey_entry_frame = ttk.Frame(hotkey_frame)
-        hotkey_entry_frame.grid(row=0, column=1, sticky=(tk.W, tk.E), pady=5)
-        hotkey_entry_frame.columnconfigure(0, weight=1)
+        # --- Transcription Settings ---
+        transcription_frame = ttk.LabelFrame(settings_frame, text="Transcription Models", padding="15")
+        transcription_frame.grid(row=3, column=0, padx=5, pady=10, sticky="ew")
+        transcription_frame.grid_columnconfigure(1, weight=1)
 
-        self.hotkey_var = tk.StringVar(value=self.app.config.get('hotkey', 'ctrl+alt+enter'))
-        hotkey_entry = ttk.Entry(hotkey_entry_frame, textvariable=self.hotkey_var)
-        hotkey_entry.grid(row=0, column=0, sticky=(tk.W, tk.E), padx=(0, 8))
+        # Recorded Transcription Model
+        ttk.Label(transcription_frame, text="Recorded Model:").grid(row=0, column=0, sticky="w", pady=5)
+        self.recorded_model_entry = ttk.Entry(transcription_frame)
+        self.recorded_model_entry.insert(0, self.app.config['transcription']['model'])
+        self.recorded_model_entry.grid(row=0, column=1, padx=5, sticky="ew")
 
-        record_btn = ttk.Button(hotkey_entry_frame, text="Record",
-                                command=self.record_hotkey, width=10)
-        record_btn.grid(row=0, column=1)
+        # Real-time Transcription Model
+        ttk.Label(transcription_frame, text="Real-time Model:").grid(row=1, column=0, sticky="w", pady=5)
+        self.realtime_model_entry = ttk.Entry(transcription_frame)
+        self.realtime_model_entry.insert(0, self.app.config.get('realtime', {}).get('model', ''))
+        self.realtime_model_entry.grid(row=1, column=1, padx=5, sticky="ew")
 
-        # Realtime hotkey
-        ttk.Label(hotkey_frame, text="Realtime Hotkey:").grid(row=1, column=0, sticky=tk.W, padx=(0, 10), pady=5)
+        # --- Save Button ---
+        button_frame = ttk.Frame(settings_frame)
+        button_frame.grid(row=4, column=0, pady=20, sticky="e")
+        save_button = ttk.Button(button_frame, text="Save Settings", style="TButton", command=self.save_settings)
+        save_button.pack()
 
-        realtime_entry_frame = ttk.Frame(hotkey_frame)
-        realtime_entry_frame.grid(row=1, column=1, sticky=(tk.W, tk.E), pady=5)
-        realtime_entry_frame.columnconfigure(0, weight=1)
-
-        self.realtime_hotkey_var = tk.StringVar(value=self.app.config.get('realtime_hotkey', 'ctrl+alt+shift+enter'))
-        realtime_entry = ttk.Entry(realtime_entry_frame, textvariable=self.realtime_hotkey_var)
-        realtime_entry.grid(row=0, column=0, sticky=(tk.W, tk.E), padx=(0, 8))
-
-        realtime_record_btn = ttk.Button(realtime_entry_frame, text="Record",
-                                         command=self.record_realtime_hotkey, width=10)
-        realtime_record_btn.grid(row=0, column=1)
-
-        current_row += 1
-
-        # Audio settings
-        audio_frame = ttk.LabelFrame(settings_content, text="Audio Configuration", padding="15")
-        audio_frame.grid(row=current_row, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 15))
-        audio_frame.columnconfigure(1, weight=1)
-
-        # Audio device
-        ttk.Label(audio_frame, text="Audio Device:").grid(row=0, column=0, sticky=tk.W, padx=(0, 10), pady=5)
-
-        self.device_combo = ttk.Combobox(audio_frame, width=50)
-        self.device_combo.grid(row=0, column=1, sticky=(tk.W, tk.E), pady=5)
-        self.update_audio_devices()
-
-        # Engine setting
-        ttk.Label(audio_frame, text="Engine:").grid(row=1, column=0, sticky=tk.W, padx=(0, 10), pady=5)
-
-        engine_var = tk.StringVar(value=self.app.config.get('transcription', {}).get('engine', 'openai'))
-        self.engine_combo = ttk.Combobox(audio_frame, textvariable=engine_var,
-                                         values=['openai', 'vosk'], state='readonly', width=50)
-        self.engine_combo.grid(row=1, column=1, sticky=(tk.W, tk.E), pady=5)
-
-        current_row += 1
-
-        # Save button
-        save_btn = ttk.Button(settings_content, text="Save Settings",
-                              command=self.save_settings)
-        save_btn.grid(row=current_row, column=0, columnspan=2, pady=(20, 0))
+    def on_audio_device_select(self, event=None):
+        """Handle selection of an audio device."""
+        try:
+            selection = self.audio_device_menu.get()
+            # Extract device ID from string like "Microphone (ID: 2)"
+            device_id_str = selection.split('ID: ')[-1].replace(')', '')
+            if device_id_str.isdigit():
+                device_id = int(device_id_str)
+                self.app.config['audio_device_index'] = device_id
+                self.update_status(f"Audio device set to ID: {device_id}")
+                logger.info(f"Audio device selection changed to index {device_id}")
+        except Exception as e:
+            logger.error(f"Error handling audio device selection: {e}", exc_info=True)
+            self.update_status("Error selecting audio device.")
 
     def create_transcriptions_tab(self):
-        """Create transcriptions history tab"""
-        tab_frame = ttk.Frame(self.notebook)
+        """Create transcriptions history tab with enhanced details."""
+        tab_frame = ttk.Frame(self.notebook, padding="10")
         self.notebook.add(tab_frame, text="Transcriptions")
 
         # Configure grid
         tab_frame.columnconfigure(0, weight=1)
-        tab_frame.rowconfigure(1, weight=1)
+        tab_frame.rowconfigure(2, weight=1) # Make space for search
 
         # Controls frame
-        controls_frame = ttk.Frame(tab_frame, padding="10")
-        controls_frame.grid(row=0, column=0, sticky=(tk.W, tk.E))
+        controls_frame = ttk.Frame(tab_frame)
+        controls_frame.grid(row=0, column=0, sticky="ew", pady=(0, 10))
+        controls_frame.columnconfigure(1, weight=1)
 
-        ttk.Label(controls_frame, text="Transcription History",
-                  font=("Segoe UI", 14, "bold")).grid(row=0, column=0, sticky=tk.W)
+        ttk.Label(controls_frame, text="Transcription History", style="Header.TLabel").grid(row=0, column=0, sticky="w")
 
         # Buttons
         button_frame = ttk.Frame(controls_frame)
-        button_frame.grid(row=0, column=1, sticky=tk.E)
+        button_frame.grid(row=0, column=1, sticky="e")
 
-        ttk.Button(button_frame, text="Copy Selected",
-                   command=self.copy_selected_transcription).grid(row=0, column=0, padx=(0, 5))
+        ttk.Button(button_frame, text="Copy Selected", style="TButton", command=self.copy_selected_transcription).grid(row=0, column=0, padx=(0, 5))
+        ttk.Button(button_frame, text="Refresh", style="TButton", command=self.update_recent_transcriptions).grid(row=0, column=1)
 
-        ttk.Button(button_frame, text="Refresh",
-                   command=self.update_recent_transcriptions).grid(row=0, column=1)
+        # Search and Filter Frame
+        search_frame = ttk.Frame(tab_frame)
+        search_frame.grid(row=1, column=0, sticky="ew", pady=(0, 10))
+        search_frame.columnconfigure(0, weight=1)
 
-        controls_frame.columnconfigure(1, weight=1)
+        self.search_entry = ttk.Entry(search_frame)
+        self.search_entry.grid(row=0, column=0, sticky="ew", padx=(0, 5))
+        self.search_entry.bind("<Return>", lambda event: self.search_transcriptions())
+
+        search_button = ttk.Button(search_frame, text="Search", style="TButton", command=self.search_transcriptions)
+        search_button.grid(row=0, column=1)
 
         # Transcriptions list
         list_frame = ttk.Frame(tab_frame)
-        list_frame.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=10, pady=(0, 10))
+        list_frame.grid(row=2, column=0, sticky="nsew")
         list_frame.columnconfigure(0, weight=1)
         list_frame.rowconfigure(0, weight=1)
 
-        # Create treeview for better display
-        columns = ('Date', 'Text Preview', 'Duration', 'Engine')
+        # Create treeview with new columns
+        columns = ('timestamp', 'preview', 'tokens', 'cost', 'duration', 'engine')
         self.transcriptions_tree = ttk.Treeview(list_frame, columns=columns, show='headings', height=15)
 
         # Configure columns
-        self.transcriptions_tree.heading('Date', text='Date')
-        self.transcriptions_tree.heading('Text Preview', text='Text Preview')
-        self.transcriptions_tree.heading('Duration', text='Duration (s)')
-        self.transcriptions_tree.heading('Engine', text='Engine')
+        self.transcriptions_tree.heading('timestamp', text='Timestamp')
+        self.transcriptions_tree.heading('preview', text='Text Preview')
+        self.transcriptions_tree.heading('tokens', text='Tokens (In/Out)')
+        self.transcriptions_tree.heading('cost', text='Est. Cost ($)')
+        self.transcriptions_tree.heading('duration', text='Duration (s)')
+        self.transcriptions_tree.heading('engine', text='Engine')
 
-        self.transcriptions_tree.column('Date', width=120)
-        self.transcriptions_tree.column('Text Preview', width=400)
-        self.transcriptions_tree.column('Duration', width=100)
-        self.transcriptions_tree.column('Engine', width=100)
+        self.transcriptions_tree.column('timestamp', width=150, anchor='w')
+        self.transcriptions_tree.column('preview', width=300, anchor='w')
+        self.transcriptions_tree.column('tokens', width=100, anchor='center')
+        self.transcriptions_tree.column('cost', width=80, anchor='e')
+        self.transcriptions_tree.column('duration', width=80, anchor='e')
+        self.transcriptions_tree.column('engine', width=100, anchor='w')
 
         # Add scrollbar
         tree_scrollbar = ttk.Scrollbar(list_frame, orient="vertical", command=self.transcriptions_tree.yview)
         self.transcriptions_tree.configure(yscrollcommand=tree_scrollbar.set)
 
         # Pack widgets
-        self.transcriptions_tree.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
-        tree_scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
+        self.transcriptions_tree.grid(row=0, column=0, sticky="nsew")
+        tree_scrollbar.grid(row=0, column=1, sticky="ns")
 
         # Bind double-click event
         self.transcriptions_tree.bind("<Double-Button-1>", self.copy_from_tree)
@@ -826,43 +829,29 @@ class CompleteWhisperKeyGUI:
     def record_hotkey(self):
         """Record a new hotkey combination"""
         try:
-            # Update status with instructions instead of popup
+            # Update status with instructions
             self.update_status("Hotkey Recording: Press and hold your desired key combination (including mouse buttons)")
 
             # Update button text to show recording state
-            record_btn = None
-            for widget in self.window.winfo_children():
-                if hasattr(widget, 'winfo_children'):
-                    for child in widget.winfo_children():
-                        if hasattr(child, 'winfo_children'):
-                            for grandchild in child.winfo_children():
-                                if isinstance(grandchild, ttk.Button) and "Record" in str(grandchild.cget('text')):
-                                    record_btn = grandchild
-                                    break
-
-            if record_btn:
-                record_btn.configure(text="Recording...", state='disabled')
-
-            # Update status
-            self.update_status("Recording hotkey... Press your key combination now!")
+            self.record_hotkey_button.configure(text="Recording...", state='disabled')
 
             def on_hotkey_recorded(hotkey_str):
                 """Callback when hotkey is recorded"""
                 try:
                     if hotkey_str:
-                        self.hotkey_var.set(hotkey_str)
+                        # Clear the entry and insert the new hotkey
+                        self.hotkey_entry.delete(0, tk.END)
+                        self.hotkey_entry.insert(0, hotkey_str)
                         self.update_status(f"[OK] Hotkey recorded: {hotkey_str} - Don't forget to save settings!")
                     else:
                         self.update_status("[WARN] Hotkey recording cancelled - No hotkey was recorded.")
 
                     # Reset button
-                    if record_btn:
-                        record_btn.configure(text="Record", state='normal')
+                    self.record_hotkey_button.configure(text="Record", state='normal')
 
                 except Exception as e:
                     logger.error(f"Error in hotkey callback: {e}")
-                    if record_btn:
-                        record_btn.configure(text="Record", state='normal')
+                    self.record_hotkey_button.configure(text="Record", state='normal')
 
             # Start recording with auto-stop timer
             self.hotkey_recorder = HotkeyRecorder(on_hotkey_recorded)
@@ -873,8 +862,7 @@ class CompleteWhisperKeyGUI:
                 if self.hotkey_recorder and self.hotkey_recorder.recording:
                     self.hotkey_recorder.stop_recording()
                     self.update_status("Hotkey recording timed out")
-                    if record_btn:
-                        record_btn.configure(text="Record", state='normal')
+                    self.record_hotkey_button.configure(text="Record", state='normal')
 
             threading.Timer(10.0, auto_stop).start()
 
@@ -885,43 +873,29 @@ class CompleteWhisperKeyGUI:
     def record_realtime_hotkey(self):
         """Record a new realtime hotkey combination"""
         try:
-            # Update status with instructions instead of popup
+            # Update status with instructions
             self.update_status("Realtime Hotkey Recording: Press and hold your desired key combination (including mouse buttons)")
 
             # Update button text to show recording state
-            realtime_record_btn = None
-            for widget in self.window.winfo_children():
-                if hasattr(widget, 'winfo_children'):
-                    for child in widget.winfo_children():
-                        if hasattr(child, 'winfo_children'):
-                            for grandchild in child.winfo_children():
-                                if isinstance(grandchild, ttk.Button) and "Record" in str(grandchild.cget('text')):
-                                    realtime_record_btn = grandchild
-                                    break
-
-            if realtime_record_btn:
-                realtime_record_btn.configure(text="Recording...", state='disabled')
-
-            # Update status
-            self.update_status("Recording realtime hotkey... Press your key combination now!")
+            self.record_realtime_hotkey_button.configure(text="Recording...", state='disabled')
 
             def on_hotkey_recorded(hotkey_str):
                 """Callback when hotkey is recorded"""
                 try:
                     if hotkey_str:
-                        self.realtime_hotkey_var.set(hotkey_str)
+                        # Clear the entry and insert the new hotkey
+                        self.realtime_hotkey_entry.delete(0, tk.END)
+                        self.realtime_hotkey_entry.insert(0, hotkey_str)
                         self.update_status(f"[OK] Realtime hotkey recorded: {hotkey_str} - Don't forget to save settings!")
                     else:
                         self.update_status("[WARN] Hotkey recording cancelled - No hotkey was recorded.")
 
                     # Reset button
-                    if realtime_record_btn:
-                        realtime_record_btn.configure(text="Record", state='normal')
+                    self.record_realtime_hotkey_button.configure(text="Record", state='normal')
 
                 except Exception as e:
                     logger.error(f"Error in realtime hotkey callback: {e}")
-                    if realtime_record_btn:
-                        realtime_record_btn.configure(text="Record", state='normal')
+                    self.record_realtime_hotkey_button.configure(text="Record", state='normal')
 
             # Start recording with auto-stop timer
             self.hotkey_recorder = HotkeyRecorder(on_hotkey_recorded)
@@ -932,8 +906,7 @@ class CompleteWhisperKeyGUI:
                 if self.hotkey_recorder and self.hotkey_recorder.recording:
                     self.hotkey_recorder.stop_recording()
                     self.update_status("Realtime hotkey recording timed out")
-                    if realtime_record_btn:
-                        realtime_record_btn.configure(text="Record", state='normal')
+                    self.record_realtime_hotkey_button.configure(text="Record", state='normal')
 
             threading.Timer(10.0, auto_stop).start()
 
@@ -941,32 +914,39 @@ class CompleteWhisperKeyGUI:
             logger.error(f"Error starting realtime hotkey recording: {e}")
             messagebox.showerror("Error", f"Failed to start realtime hotkey recording: {e}")
 
+    def refresh_audio_devices(self):
+        """Refresh the list of available audio devices."""
+        logger.info("Refreshing audio devices...")
+        try:
+            devices = self.app.recorder.get_audio_devices()
+            device_names = [f"{d['name']} (ID: {d['index']})" for d in devices]
+            self.audio_device_menu['values'] = device_names
+
+            current_device_index = self.app.config.get('audio_device_index')
+            for i, device in enumerate(devices):
+                if device['index'] == current_device_index:
+                    self.audio_device_menu.current(i)
+                    break
+            logger.info(f"Found {len(devices)} audio devices.")
+        except Exception as e:
+            logger.error(f"Error refreshing audio devices: {e}", exc_info=True)
+            self.update_status("Error: Could not refresh audio devices.")
+
     def save_settings(self):
         """Save current settings to configuration"""
         try:
-            # Update config with current values
-            if self.hotkey_var:
-                self.app.config['hotkey'] = self.hotkey_var.get()
+            # Update config with current values from the entry fields
+            self.app.config['hotkey'] = self.hotkey_entry.get()
+            self.app.config['realtime_hotkey'] = self.realtime_hotkey_entry.get()
 
-            if self.device_combo:
-                device_text = self.device_combo.get()
-                if ':' in device_text:
-                    device_index = int(device_text.split(':')[0])
-                    self.app.config['audio_device_index'] = device_index
+            # Audio device is now saved on select, so we just save models here
+            self.app.config['transcription']['model'] = self.recorded_model_entry.get()
+            self.app.config.setdefault('realtime', {})['model'] = self.realtime_model_entry.get()
 
-            if self.engine_combo:
-                engine = self.engine_combo.get()
-                if 'transcription' not in self.app.config:
-                    self.app.config['transcription'] = {}
-                self.app.config['transcription']['engine'] = engine
-
-            if self.realtime_hotkey_var:
-                self.app.config['realtime_hotkey'] = self.realtime_hotkey_var.get()
-
-            # Save to file
+            # Save the entire config to file
             self.app.save_config()
 
-            # Update hotkey registration
+            # Update hotkey registration after saving
             if hasattr(self.app, 'setup_hotkey'):
                 self.app.setup_hotkey()
             else:
@@ -976,7 +956,7 @@ class CompleteWhisperKeyGUI:
             logger.info("Settings saved")
 
         except Exception as e:
-            logger.error(f"Error saving settings: {e}")
+            logger.error(f"Error saving settings: {e}", exc_info=True)
             self.update_status(f"[ERROR] Failed to save settings: {e}")
 
     def update_hotkey(self):
@@ -1179,43 +1159,62 @@ class CompleteWhisperKeyGUI:
         else:
             _update_cost_tracking_main_thread()
 
-    def update_transcriptions_tree(self):
-        """Update the transcriptions tree view with detailed logging"""
+    def search_transcriptions(self):
+        """Search and filter transcriptions based on user input."""
+        query = self.search_entry.get()
+        if not query:
+            self.update_transcriptions_tree()
+            return
+
+        try:
+            results = self.db.search_transcriptions(query)
+            self.update_transcriptions_tree(records=results)
+            self.update_status(f"Found {len(results)} matching transcriptions.")
+        except Exception as e:
+            logger.error(f"Error during transcription search: {e}")
+            self.update_status("Error during search.")
+
+    def update_transcriptions_tree(self, records=None):
+        """Update the transcriptions tree view with token and cost data."""
         try:
             logger.info("Updating transcriptions tree...")
 
             # Clear existing items
-            if not hasattr(self, 'transcriptions_tree') or not self.transcriptions_tree:
-                logger.warning("Transcriptions tree not initialized")
-                return
-                
-            for item in self.transcriptions_tree.get_children():
-                self.transcriptions_tree.delete(item)
+            if hasattr(self, 'transcriptions_tree') and self.transcriptions_tree:
+                for item in self.transcriptions_tree.get_children():
+                    self.transcriptions_tree.delete(item)
 
-            # Get transcription data
-            records = self.db.get_all_transcriptions(50)
-            logger.info(f"Retrieved {len(records)} transcription records for tree view")
+                # Get all transcriptions if no specific records are provided
+                if records is None:
+                    records = self.db.get_all_transcriptions(100)
+                logger.info(f"Retrieved {len(records)} records for transcriptions tree")
 
-            for i, record in enumerate(records):
-                try:
-                    date = record.timestamp.split('T')[0] if 'T' in record.timestamp else record.timestamp
-                    preview = record.text[:80] + "..." if len(record.text) > 80 else record.text
-                    duration = f"{record.duration_seconds:.1f}"
+                # Add to treeview
+                for record in records:
+                    try:
+                        # Format timestamp
+                        try:
+                            ts = datetime.fromisoformat(record.timestamp).strftime('%Y-%m-%d %H:%M:%S')
+                        except (ValueError, TypeError):
+                            ts = record.timestamp
 
-                    self.transcriptions_tree.insert('', tk.END, values=(
-                        date,
-                        preview,
-                        duration,
-                        record.engine
-                    ))
+                        preview = record.text[:70] + "..." if len(record.text) > 70 else record.text
+                        tokens = f"{record.input_tokens}/{record.output_tokens}"
+                        cost = f"{record.cost:.6f}"
+                        duration = f"{record.duration_seconds:.2f}"
 
-                    if i < 5:  # Log first few for debugging
-                        logger.debug(f"Added transcription {i + 1}: {date} - {preview[:30]}...")
+                        self.transcriptions_tree.insert('', tk.END, values=(
+                            ts,
+                            preview,
+                            tokens,
+                            cost,
+                            duration,
+                            record.engine
+                        ))
+                    except Exception as e:
+                        logger.error(f"Error processing tree record: {e}")
 
-                except Exception as e:
-                    logger.error(f"Error processing transcription record {i}: {e}")
-
-            logger.info(f"Transcriptions tree updated with {len(records)} records")
+            logger.info("Transcriptions tree updated successfully")
 
         except Exception as e:
             logger.error(f"Error updating transcriptions tree: {e}", exc_info=True)
