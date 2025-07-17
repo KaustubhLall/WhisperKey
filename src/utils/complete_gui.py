@@ -222,7 +222,23 @@ class CompleteWhisperKeyGUI:
                            background='#dc3545')  # Red color
             style.map('Recording.TButton',
                       background=[('active', '#c82333')])  # Darker red on hover
-
+            
+            # Configure modern treeview heading styling
+            style.configure("Treeview.Heading",
+                           background='#3d3d3d',
+                           foreground='#ffffff',
+                           font=("Segoe UI", 10, "bold"))
+            style.map("Treeview.Heading",
+                      background=[('active', '#4a90e2')])
+            
+            # Configure treeview font for better readability
+            style.configure("Treeview", font=("Consolas", 9),
+                           background="#2b2b2b", foreground="#ffffff", 
+                           fieldbackground="#2b2b2b", rowheight=25)
+            style.map("Treeview",
+                      background=[('selected', '#4a90e2')],
+                      foreground=[('selected', '#ffffff')])
+            
             # Create all widgets
             self.create_widgets()
 
@@ -313,7 +329,7 @@ class CompleteWhisperKeyGUI:
 
         # Configure grid
         tab_frame.columnconfigure(0, weight=1)
-        tab_frame.rowconfigure(2, weight=1)
+        tab_frame.rowconfigure(2, weight=1) # Make space for transcriptions list
 
         # Quick actions section
         actions_frame = ttk.LabelFrame(tab_frame, text="Quick Actions", padding="15")
@@ -322,7 +338,7 @@ class CompleteWhisperKeyGUI:
 
         # Regular recording button
         self.record_button = ttk.Button(actions_frame, text="Start Recording",
-                                command=self.manual_record, width=20, style="Recording.TButton")
+                                command=self.manual_record, width=20)
         self.record_button.grid(row=0, column=0, padx=(0, 10), pady=5)
 
         # Realtime transcription button
@@ -354,15 +370,48 @@ class CompleteWhisperKeyGUI:
         recent_frame.columnconfigure(0, weight=1)
         recent_frame.rowconfigure(0, weight=1)
 
-        # Create overview listbox
-        self.overview_listbox = tk.Listbox(recent_frame, height=8, font=("Segoe UI", 10), selectmode='browse')
-        scrollbar_overview = ttk.Scrollbar(recent_frame, orient="vertical", command=self.overview_listbox.yview)
+        # Create split pane for transcriptions
+        split_frame = ttk.Frame(recent_frame)
+        split_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        split_frame.columnconfigure(0, weight=1)
+        split_frame.columnconfigure(1, weight=2)  # Right side gets more space
+        split_frame.rowconfigure(0, weight=1)
+
+        # Left side - transcription list
+        left_frame = ttk.Frame(split_frame)
+        left_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=(0, 5))
+        left_frame.columnconfigure(0, weight=1)
+        left_frame.rowconfigure(0, weight=1)
+
+        self.overview_listbox = tk.Listbox(left_frame, height=8, font=("Consolas", 9), 
+                                          selectmode='browse', bg='#2b2b2b', fg='#ffffff',
+                                          selectbackground='#4a90e2', selectforeground='#ffffff')
+        scrollbar_overview = ttk.Scrollbar(left_frame, orient="vertical", command=self.overview_listbox.yview)
         self.overview_listbox.configure(yscrollcommand=scrollbar_overview.set)
 
         self.overview_listbox.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         scrollbar_overview.grid(row=0, column=1, sticky=(tk.N, tk.S))
 
-        # Bind double-click event
+        # Right side - full transcript display
+        right_frame = ttk.LabelFrame(split_frame, text="Full Transcript", padding="10")
+        right_frame.grid(row=0, column=1, sticky=(tk.W, tk.E, tk.N, tk.S), padx=(5, 0))
+        right_frame.columnconfigure(0, weight=1)
+        right_frame.rowconfigure(0, weight=1)
+
+        self.transcript_text = tk.Text(right_frame, height=8, font=("Segoe UI", 10), 
+                                      wrap=tk.WORD, bg='#2b2b2b', fg='#ffffff',
+                                      insertbackground='#ffffff', selectbackground='#4a90e2')
+        self.transcript_text.configure(state='disabled')  # Read-only
+        
+        transcript_scrollbar = ttk.Scrollbar(right_frame, orient="vertical", command=self.transcript_text.yview)
+        self.transcript_text.configure(yscrollcommand=transcript_scrollbar.set)
+        
+        self.transcript_text.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        transcript_scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
+
+        # Bind selection event to show full transcript
+        self.overview_listbox.bind("<<ListboxSelect>>", self.on_overview_select)
+        # Bind double-click event for copying
         self.overview_listbox.bind("<Double-Button-1>", self.copy_selected_transcription)
 
     def create_settings_tab(self):
@@ -431,21 +480,6 @@ class CompleteWhisperKeyGUI:
         save_button = ttk.Button(button_frame, text="Save Settings", style="TButton", command=self.save_settings)
         save_button.pack()
 
-    def on_audio_device_select(self, event=None):
-        """Handle selection of an audio device."""
-        try:
-            selection = self.audio_device_menu.get()
-            # Extract device ID from string like "Microphone (ID: 2)"
-            device_id_str = selection.split('ID: ')[-1].replace(')', '')
-            if device_id_str.isdigit():
-                device_id = int(device_id_str)
-                self.app.config['audio_device_index'] = device_id
-                self.update_status(f"Audio device set to ID: {device_id}")
-                logger.info(f"Audio device selection changed to index {device_id}")
-        except Exception as e:
-            logger.error(f"Error handling audio device selection: {e}", exc_info=True)
-            self.update_status("Error selecting audio device.")
-
     def create_transcriptions_tab(self):
         """Create transcriptions history tab with enhanced details."""
         tab_frame = ttk.Frame(self.notebook, padding="10")
@@ -510,7 +544,12 @@ class CompleteWhisperKeyGUI:
         
         # Configure treeview font for better readability
         style = ttk.Style()
-        style.configure("Transcriptions.Treeview", font=("Consolas", 9))
+        style.configure("Transcriptions.Treeview", font=("Consolas", 9),
+                       background="#2b2b2b", foreground="#ffffff", 
+                       fieldbackground="#2b2b2b", rowheight=25)
+        style.map("Transcriptions.Treeview",
+                  background=[('selected', '#4a90e2')],
+                  foreground=[('selected', '#ffffff')])
         self.transcriptions_tree.configure(style="Transcriptions.Treeview")
 
         # Add scrollbar
@@ -668,7 +707,12 @@ class CompleteWhisperKeyGUI:
         
         # Configure treeview font for better readability
         style = ttk.Style()
-        style.configure("Daily.Treeview", font=("Consolas", 9))
+        style.configure("Daily.Treeview", font=("Consolas", 9),
+                       background="#2b2b2b", foreground="#ffffff", 
+                       fieldbackground="#2b2b2b", rowheight=25)
+        style.map("Daily.Treeview",
+                  background=[('selected', '#4a90e2')],
+                  foreground=[('selected', '#ffffff')])
         self.daily_tree.configure(style="Daily.Treeview")
 
         # Add scrollbar
@@ -712,7 +756,12 @@ class CompleteWhisperKeyGUI:
         
         # Configure treeview font for better readability
         style = ttk.Style()
-        style.configure("Weekly.Treeview", font=("Consolas", 9))
+        style.configure("Weekly.Treeview", font=("Consolas", 9),
+                       background="#2b2b2b", foreground="#ffffff", 
+                       fieldbackground="#2b2b2b", rowheight=25)
+        style.map("Weekly.Treeview",
+                  background=[('selected', '#4a90e2')],
+                  foreground=[('selected', '#ffffff')])
         self.weekly_tree.configure(style="Weekly.Treeview")
 
         # Add scrollbar
@@ -758,7 +807,12 @@ class CompleteWhisperKeyGUI:
         
         # Configure treeview font for better readability
         style = ttk.Style()
-        style.configure("Monthly.Treeview", font=("Consolas", 9))
+        style.configure("Monthly.Treeview", font=("Consolas", 9),
+                       background="#2b2b2b", foreground="#ffffff", 
+                       fieldbackground="#2b2b2b", rowheight=25)
+        style.map("Monthly.Treeview",
+                  background=[('selected', '#4a90e2')],
+                  foreground=[('selected', '#ffffff')])
         self.monthly_tree.configure(style="Monthly.Treeview")
 
         # Add scrollbar
@@ -1886,6 +1940,71 @@ class CompleteWhisperKeyGUI:
 
         except Exception as e:
             logger.error(f"Error updating monthly costs tree: {e}")
+
+    def on_overview_select(self, event=None):
+        """Show full transcript when a list item is selected"""
+        try:
+            selected_idx = self.overview_listbox.curselection()
+            if not selected_idx:
+                self.transcript_text.configure(state='normal')
+                self.transcript_text.delete('1.0', tk.END)
+                self.transcript_text.configure(state='disabled')
+                return
+
+            selected_text = self.overview_listbox.get(selected_idx)
+
+            # Extract date from selected text (format: "YYYY-MM-DD: text...")
+            if ": " in selected_text:
+                date_str = selected_text.split(": ")[0]
+                preview_text = ": ".join(selected_text.split(": ")[1:])
+
+                # Find matching record in database by date and preview
+                records = self.db.get_recent_transcriptions(100)
+                for record in records:
+                    record_date = self.format_timestamp_natural(record.timestamp)
+                    record_preview = record.text[:50] + "..." if len(record.text) > 50 else record.text
+                    
+                    if record_date == date_str and record_preview == preview_text:
+                        # Show full text
+                        self.transcript_text.configure(state='normal')
+                        self.transcript_text.delete('1.0', tk.END)
+                        self.transcript_text.insert('1.0', record.text)
+                        self.transcript_text.configure(state='disabled')
+                        return
+
+                # Fallback: find by date only if preview doesn't match exactly
+                for record in records:
+                    record_date = self.format_timestamp_natural(record.timestamp)
+                    if record_date == date_str:
+                        # Show full text
+                        self.transcript_text.configure(state='normal')
+                        self.transcript_text.delete('1.0', tk.END)
+                        self.transcript_text.insert('1.0', record.text)
+                        self.transcript_text.configure(state='disabled')
+                        return
+            
+            # Final fallback: show nothing
+            self.transcript_text.configure(state='normal')
+            self.transcript_text.delete('1.0', tk.END)
+            self.transcript_text.configure(state='disabled')
+
+        except Exception as e:
+            logger.error(f"Error showing full transcript: {e}")
+
+    def on_audio_device_select(self, event=None):
+        """Handle selection of an audio device."""
+        try:
+            selection = self.audio_device_menu.get()
+            # Extract device ID from string like "Microphone (ID: 2)"
+            device_id_str = selection.split('ID: ')[-1].replace(')', '')
+            if device_id_str.isdigit():
+                device_id = int(device_id_str)
+                self.app.config['audio_device_index'] = device_id
+                self.update_status(f"Audio device set to ID: {device_id}")
+                logger.info(f"Audio device selection changed to index {device_id}")
+        except Exception as e:
+            logger.error(f"Error handling audio device selection: {e}", exc_info=True)
+            self.update_status("Error selecting audio device.")
 
     def on_recording_finished(self):
         """Called when recording actually finishes to reset button state"""
