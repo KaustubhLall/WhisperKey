@@ -142,10 +142,10 @@ class CompleteWhisperKeyGUI:
         
         # Recording state tracking
         self.is_recording = False
+        self.is_realtime_active = False
         
         # Initialize GUI
         self.create_window()
-        AppStyles.apply(self.window)
         logger.info("=== Complete WhisperKey GUI Initialized ===")
 
     def safe_gui_call(self, func):
@@ -182,6 +182,49 @@ class CompleteWhisperKeyGUI:
             # Fallback to original timestamp if parsing fails
             return timestamp_str
 
+    def setup_jetbrains_theme(self, style):
+        """Configure comprehensive JetBrains-style dark theme"""
+        # Configure colors
+        style.configure("TFrame", background="#2b2b2b")
+        style.configure("TLabel", background="#2b2b2b", foreground="#ffffff")
+        style.configure("TButton", background="#3d3d3d", foreground="#ffffff")
+        style.configure("TEntry", background="#3d3d3d", foreground="#ffffff", 
+                       fieldbackground="#3d3d3d", insertbackground="#ffffff")
+        style.configure("TNotebook", background="#2b2b2b", tabmargins=[2, 2, 2, 2])
+        style.configure("TNotebook.Tab", background="#3d3d3d", foreground="#ffffff", 
+                       padding=[5, 2], borderwidth=0)
+        style.map("TNotebook.Tab", background=[("selected", "#4a90e2")], foreground=[("selected", "#ffffff")])
+        style.configure("TMenubutton", background="#3d3d3d", foreground="#ffffff")
+        style.configure("TCheckbutton", background="#2b2b2b", foreground="#ffffff")
+        style.configure("TRadiobutton", background="#2b2b2b", foreground="#ffffff")
+        style.configure("TCombobox", background="#3d3d3d", foreground="#ffffff", 
+                       fieldbackground="#3d3d3d", selectbackground="#4a90e2", 
+                       selectforeground="#ffffff", arrowcolor="#ffffff")
+        style.map("TCombobox", fieldbackground=[("readonly", "#3d3d3d")], 
+                  selectbackground=[("readonly", "#4a90e2")])
+        style.configure("Vertical.TScrollbar", background="#3d3d3d", troughcolor="#2b2b2b", 
+                       arrowcolor="#ffffff", bordercolor="#3d3d3d", 
+                       activebackground="#4a90e2")
+        style.map("Vertical.TScrollbar", background=[("active", "#4a90e2")], 
+                  troughcolor=[("active", "#2b2b2b")], arrowcolor=[("active", "#ffffff")])
+        style.configure("Horizontal.TScrollbar", background="#3d3d3d", troughcolor="#2b2b2b", 
+                       arrowcolor="#ffffff", bordercolor="#3d3d3d", 
+                       activebackground="#4a90e2")
+        style.map("Horizontal.TScrollbar", background=[("active", "#4a90e2")], 
+                  troughcolor=[("active", "#2b2b2b")], arrowcolor=[("active", "#ffffff")])
+        
+        # Configure LabelFrame styling
+        style.configure("TLabelframe", background="#2b2b2b", borderwidth=1, 
+                       relief="solid", bordercolor="#3d3d3d")
+        style.configure("TLabelframe.Label", background="#2b2b2b", foreground="#ffffff", 
+                       font=("Segoe UI", 10, "bold"))
+        
+        # Configure special header and status label styling
+        style.configure("Header.TLabel", background="#2b2b2b", foreground="#ffffff", 
+                       font=("Segoe UI", 18, "bold"))
+        style.configure("Status.TLabel", background="#2b2b2b", foreground="#b0b0b0", 
+                       font=("Segoe UI", 10))
+
     def create_window(self):
         """Create the main GUI window using proven working approach"""
         logger.info("Creating main window...")
@@ -211,6 +254,9 @@ class CompleteWhisperKeyGUI:
 
             self.window.configure(bg=self.colors['bg_primary'])
             
+            # Configure comprehensive JetBrains-style dark theme
+            self.setup_jetbrains_theme(style)
+            
             # Configure button disabled styling
             style.map('TButton', 
                       foreground=[('disabled', '#666666')],
@@ -239,6 +285,18 @@ class CompleteWhisperKeyGUI:
                       background=[('selected', '#4a90e2')],
                       foreground=[('selected', '#ffffff')])
             
+            # Configure LabelFrame styling
+            style.configure("TLabelframe", background="#2b2b2b", borderwidth=1, 
+                           relief="solid", bordercolor="#3d3d3d")
+            style.configure("TLabelframe.Label", background="#2b2b2b", foreground="#ffffff", 
+                           font=("Segoe UI", 10, "bold"))
+            
+            # Configure special header and status label styling
+            style.configure("Header.TLabel", background="#2b2b2b", foreground="#ffffff", 
+                           font=("Segoe UI", 18, "bold"))
+            style.configure("Status.TLabel", background="#2b2b2b", foreground="#b0b0b0", 
+                           font=("Segoe UI", 10))
+
             # Create all widgets
             self.create_widgets()
 
@@ -373,8 +431,8 @@ class CompleteWhisperKeyGUI:
         # Create split pane for transcriptions
         split_frame = ttk.Frame(recent_frame)
         split_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
-        split_frame.columnconfigure(0, weight=1)
-        split_frame.columnconfigure(1, weight=2)  # Right side gets more space
+        split_frame.columnconfigure(0, weight=1, minsize=200)  # Left side: 35%
+        split_frame.columnconfigure(1, weight=2, minsize=300)  # Right side: 65%
         split_frame.rowconfigure(0, weight=1)
 
         # Left side - transcription list
@@ -542,16 +600,6 @@ class CompleteWhisperKeyGUI:
         self.transcriptions_tree.column('engine', width=80, anchor='w')
         self.transcriptions_tree.column('model', width=120, anchor='w')
         
-        # Configure treeview font for better readability
-        style = ttk.Style()
-        style.configure("Transcriptions.Treeview", font=("Consolas", 9),
-                       background="#2b2b2b", foreground="#ffffff", 
-                       fieldbackground="#2b2b2b", rowheight=25)
-        style.map("Transcriptions.Treeview",
-                  background=[('selected', '#4a90e2')],
-                  foreground=[('selected', '#ffffff')])
-        self.transcriptions_tree.configure(style="Transcriptions.Treeview")
-
         # Add scrollbar
         tree_scrollbar = ttk.Scrollbar(list_frame, orient="vertical", command=self.transcriptions_tree.yview)
         self.transcriptions_tree.configure(yscrollcommand=tree_scrollbar.set)
@@ -705,16 +753,6 @@ class CompleteWhisperKeyGUI:
         self.daily_tree.column('Details', width=300)
         self.daily_tree.column('Last Updated', width=150)
         
-        # Configure treeview font for better readability
-        style = ttk.Style()
-        style.configure("Daily.Treeview", font=("Consolas", 9),
-                       background="#2b2b2b", foreground="#ffffff", 
-                       fieldbackground="#2b2b2b", rowheight=25)
-        style.map("Daily.Treeview",
-                  background=[('selected', '#4a90e2')],
-                  foreground=[('selected', '#ffffff')])
-        self.daily_tree.configure(style="Daily.Treeview")
-
         # Add scrollbar
         daily_scrollbar = ttk.Scrollbar(tab_frame, orient="vertical", command=self.daily_tree.yview)
         self.daily_tree.configure(yscrollcommand=daily_scrollbar.set)
@@ -754,16 +792,6 @@ class CompleteWhisperKeyGUI:
         self.weekly_tree.column('Avg Daily', width=120)
         self.weekly_tree.column('Days Active', width=100)
         
-        # Configure treeview font for better readability
-        style = ttk.Style()
-        style.configure("Weekly.Treeview", font=("Consolas", 9),
-                       background="#2b2b2b", foreground="#ffffff", 
-                       fieldbackground="#2b2b2b", rowheight=25)
-        style.map("Weekly.Treeview",
-                  background=[('selected', '#4a90e2')],
-                  foreground=[('selected', '#ffffff')])
-        self.weekly_tree.configure(style="Weekly.Treeview")
-
         # Add scrollbar
         weekly_scrollbar = ttk.Scrollbar(tab_frame, orient="vertical", command=self.weekly_tree.yview)
         self.weekly_tree.configure(yscrollcommand=weekly_scrollbar.set)
@@ -805,16 +833,6 @@ class CompleteWhisperKeyGUI:
         self.monthly_tree.column('Avg Daily', width=120)
         self.monthly_tree.column('Trend', width=80)
         
-        # Configure treeview font for better readability
-        style = ttk.Style()
-        style.configure("Monthly.Treeview", font=("Consolas", 9),
-                       background="#2b2b2b", foreground="#ffffff", 
-                       fieldbackground="#2b2b2b", rowheight=25)
-        style.map("Monthly.Treeview",
-                  background=[('selected', '#4a90e2')],
-                  foreground=[('selected', '#ffffff')])
-        self.monthly_tree.configure(style="Monthly.Treeview")
-
         # Add scrollbar
         monthly_scrollbar = ttk.Scrollbar(tab_frame, orient="vertical", command=self.monthly_tree.yview)
         self.monthly_tree.configure(yscrollcommand=monthly_scrollbar.set)
@@ -846,14 +864,16 @@ class CompleteWhisperKeyGUI:
                                    "Realtime transcription is not available. Check your configuration.")
             return
 
-        if not self.app.is_realtime_active:
+        if not self.is_realtime_active:
             # Start realtime
             self.app.start_realtime_transcription()
-            self.realtime_btn.configure(text="Stop Realtime")
+            self.realtime_btn.configure(text="Stop Realtime", style="Recording.TButton")
+            self.is_realtime_active = True
         else:
             # Stop realtime
             self.app.stop_realtime_transcription()
-            self.realtime_btn.configure(text="Start Realtime")
+            self.realtime_btn.configure(text="Start Realtime", style="TButton")
+            self.is_realtime_active = False
 
     def update_status(self, status: str):
         """Update the status label - thread-safe version"""
@@ -978,7 +998,7 @@ class CompleteWhisperKeyGUI:
                       font=("Segoe UI", 12, "bold")).grid(row=2, column=0, pady=(10, 0))
 
         except Exception as e:
-            logger.error(f"Error showing cost breakdown: {e}")
+            logger.error(f"Error showing cost breakdown: {e}", exc_info=True)
             messagebox.showerror("Error", f"Failed to show cost breakdown: {e}")
 
     def update_audio_devices(self):
@@ -2011,5 +2031,13 @@ class CompleteWhisperKeyGUI:
         def _reset_button():
             self.record_button.configure(text="Start Recording", style="TButton")
             self.is_recording = False
+        
+        self.safe_gui_call(_reset_button)
+
+    def on_realtime_finished(self):
+        """Called when realtime actually finishes to reset button state"""
+        def _reset_button():
+            self.realtime_btn.configure(text="Start Realtime", style="TButton")
+            self.is_realtime_active = False
         
         self.safe_gui_call(_reset_button)
