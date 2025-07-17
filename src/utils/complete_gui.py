@@ -30,6 +30,7 @@ class HotkeyRecorder:
         self.pressed_keys = set()
         self.keyboard_listener = None
         self.mouse_listener = None
+        self._timer = None
 
     def start_recording(self):
         """Start recording hotkey combination"""
@@ -51,6 +52,11 @@ class HotkeyRecorder:
     def stop_recording(self):
         """Stop recording and return the hotkey combination"""
         self.recording = False
+
+        # Cancel any running timer
+        if self._timer:
+            self._timer.cancel()
+            self._timer = None
 
         if self.keyboard_listener:
             self.keyboard_listener.stop()
@@ -127,11 +133,54 @@ class CompleteWhisperKeyGUI:
         self.status_label = None
         self.notebook = None
         self.cost_labels = {}
-
+        self.transcription_records = {}  # Store original records for sorting
+        
+        # Format toggles for display
+        self.duration_format_hms = False  # False = seconds, True = HMS
+        self.cost_format_dollars = True   # True = dollars, False = cents
+        self.selected_transcription_record = None  # Track selected record for copying
+        
+        # Recording state tracking
+        self.is_recording = False
+        
         # Initialize GUI
         self.create_window()
         AppStyles.apply(self.window)
         logger.info("=== Complete WhisperKey GUI Initialized ===")
+
+    def safe_gui_call(self, func):
+        """Safely call a GUI function on the main thread"""
+        if self.window and hasattr(self.window, 'after'):
+            self.window.after(0, func)
+        else:
+            func()
+
+    def format_timestamp_natural(self, timestamp_str):
+        """Format timestamp to natural language like 'July 4, 5:30pm'"""
+        try:
+            # Parse ISO timestamp
+            dt = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+            
+            # Format to natural language
+            month = dt.strftime('%B')
+            day = dt.day
+            hour = dt.hour
+            minute = dt.minute
+            
+            # Convert to 12-hour format
+            if hour == 0:
+                time_str = f"12:{minute:02d}am"
+            elif hour < 12:
+                time_str = f"{hour}:{minute:02d}am"
+            elif hour == 12:
+                time_str = f"12:{minute:02d}pm"
+            else:
+                time_str = f"{hour-12}:{minute:02d}pm"
+            
+            return f"{month} {day}, {time_str}"
+        except (ValueError, TypeError, AttributeError):
+            # Fallback to original timestamp if parsing fails
+            return timestamp_str
 
     def create_window(self):
         """Create the main GUI window using proven working approach"""
@@ -161,6 +210,18 @@ class CompleteWhisperKeyGUI:
             }
 
             self.window.configure(bg=self.colors['bg_primary'])
+            
+            # Configure button disabled styling
+            style.map('TButton', 
+                      foreground=[('disabled', '#666666')],
+                      background=[('disabled', '#f0f0f0')])
+            
+            # Configure recording button styling
+            style.configure("Recording.TButton",
+                           foreground='white',
+                           background='#dc3545')  # Red color
+            style.map('Recording.TButton',
+                      background=[('active', '#c82333')])  # Darker red on hover
 
             # Create all widgets
             self.create_widgets()
@@ -260,9 +321,9 @@ class CompleteWhisperKeyGUI:
         actions_frame.columnconfigure(1, weight=1)
 
         # Regular recording button
-        record_btn = ttk.Button(actions_frame, text="Start Recording",
-                                command=self.manual_record, width=20)
-        record_btn.grid(row=0, column=0, padx=(0, 10), pady=5)
+        self.record_button = ttk.Button(actions_frame, text="Start Recording",
+                                command=self.manual_record, width=20, style="Recording.TButton")
+        self.record_button.grid(row=0, column=0, padx=(0, 10), pady=5)
 
         # Realtime transcription button
         self.realtime_btn = ttk.Button(actions_frame, text="Start Realtime",
@@ -294,7 +355,7 @@ class CompleteWhisperKeyGUI:
         recent_frame.rowconfigure(0, weight=1)
 
         # Create overview listbox
-        self.overview_listbox = tk.Listbox(recent_frame, height=8, font=("Segoe UI", 10))
+        self.overview_listbox = tk.Listbox(recent_frame, height=8, font=("Segoe UI", 10), selectmode='browse')
         scrollbar_overview = ttk.Scrollbar(recent_frame, orient="vertical", command=self.overview_listbox.yview)
         self.overview_listbox.configure(yscrollcommand=scrollbar_overview.set)
 
@@ -392,7 +453,7 @@ class CompleteWhisperKeyGUI:
 
         # Configure grid
         tab_frame.columnconfigure(0, weight=1)
-        tab_frame.rowconfigure(2, weight=1) # Make space for search
+        tab_frame.rowconfigure(2, weight=1) # Make space for transcriptions list
 
         # Controls frame
         controls_frame = ttk.Frame(tab_frame)
@@ -426,8 +487,8 @@ class CompleteWhisperKeyGUI:
         list_frame.columnconfigure(0, weight=1)
         list_frame.rowconfigure(0, weight=1)
 
-        # Create treeview with new columns
-        columns = ('timestamp', 'preview', 'tokens', 'cost', 'duration', 'engine')
+        # Create treeview with new columns including model
+        columns = ('timestamp', 'preview', 'tokens', 'cost', 'duration', 'engine', 'model')
         self.transcriptions_tree = ttk.Treeview(list_frame, columns=columns, show='headings', height=15)
 
         # Configure columns
@@ -437,13 +498,20 @@ class CompleteWhisperKeyGUI:
         self.transcriptions_tree.heading('cost', text='Est. Cost ($)')
         self.transcriptions_tree.heading('duration', text='Duration (s)')
         self.transcriptions_tree.heading('engine', text='Engine')
+        self.transcriptions_tree.heading('model', text='Model')
 
         self.transcriptions_tree.column('timestamp', width=150, anchor='w')
-        self.transcriptions_tree.column('preview', width=300, anchor='w')
+        self.transcriptions_tree.column('preview', width=250, anchor='w')
         self.transcriptions_tree.column('tokens', width=100, anchor='center')
         self.transcriptions_tree.column('cost', width=80, anchor='e')
         self.transcriptions_tree.column('duration', width=80, anchor='e')
-        self.transcriptions_tree.column('engine', width=100, anchor='w')
+        self.transcriptions_tree.column('engine', width=80, anchor='w')
+        self.transcriptions_tree.column('model', width=120, anchor='w')
+        
+        # Configure treeview font for better readability
+        style = ttk.Style()
+        style.configure("Transcriptions.Treeview", font=("Consolas", 9))
+        self.transcriptions_tree.configure(style="Transcriptions.Treeview")
 
         # Add scrollbar
         tree_scrollbar = ttk.Scrollbar(list_frame, orient="vertical", command=self.transcriptions_tree.yview)
@@ -455,6 +523,24 @@ class CompleteWhisperKeyGUI:
 
         # Bind double-click event
         self.transcriptions_tree.bind("<Double-Button-1>", self.copy_from_tree)
+
+        # Bind column click event for sorting
+        for col in self.transcriptions_tree['columns']:
+            self.transcriptions_tree.heading(col, command=lambda c=col: self.sort_treeview_column(self.transcriptions_tree, c))
+
+        # Format toggle buttons
+        format_frame = ttk.Frame(tab_frame)
+        format_frame.grid(row=3, column=0, sticky="ew", pady=(10, 0))
+        
+        ttk.Label(format_frame, text="Display Format:").grid(row=0, column=0, sticky="w", padx=(0, 10))
+        
+        self.duration_toggle_btn = ttk.Button(format_frame, text="Duration: Seconds", 
+                                            command=self.toggle_duration_format, width=15)
+        self.duration_toggle_btn.grid(row=0, column=1, padx=(0, 5))
+        
+        self.cost_toggle_btn = ttk.Button(format_frame, text="Cost: Dollars", 
+                                        command=self.toggle_cost_format, width=15)
+        self.cost_toggle_btn.grid(row=0, column=2, padx=(0, 5))
 
     def create_cost_tracking_tab(self):
         """Create comprehensive cost tracking tab"""
@@ -503,6 +589,16 @@ class CompleteWhisperKeyGUI:
         self.create_weekly_costs_tab()
         self.create_monthly_costs_tab()
 
+        # Format toggle buttons for cost tracking
+        cost_format_frame = ttk.Frame(details_frame)
+        cost_format_frame.grid(row=1, column=0, sticky="ew", pady=(10, 0))
+        
+        ttk.Label(cost_format_frame, text="Cost Format:").grid(row=0, column=0, sticky="w", padx=(0, 10))
+        
+        self.cost_tracking_toggle_btn = ttk.Button(cost_format_frame, text="Cost: Dollars", 
+                                                 command=self.toggle_cost_format, width=15)
+        self.cost_tracking_toggle_btn.grid(row=0, column=1, padx=(0, 5))
+
     def create_cost_summary_cards(self, parent):
         """Create summary cards for cost overview"""
         # Configure grid for 3 cards
@@ -514,7 +610,7 @@ class CompleteWhisperKeyGUI:
         today_frame = ttk.LabelFrame(parent, text="Today", padding="15")
         today_frame.grid(row=0, column=0, sticky=(tk.W, tk.E), padx=(0, 5))
 
-        self.cost_labels['today_cost'] = ttk.Label(today_frame, text="$0.00",
+        self.cost_labels['today_cost'] = ttk.Label(today_frame, text="$0.0000",
                                                    font=("Segoe UI", 16, "bold"))
         self.cost_labels['today_cost'].grid(row=0, column=0)
 
@@ -526,7 +622,7 @@ class CompleteWhisperKeyGUI:
         month_frame = ttk.LabelFrame(parent, text="This Month", padding="15")
         month_frame.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=5)
 
-        self.cost_labels['month_cost'] = ttk.Label(month_frame, text="$0.00",
+        self.cost_labels['month_cost'] = ttk.Label(month_frame, text="$0.0000",
                                                    font=("Segoe UI", 16, "bold"))
         self.cost_labels['month_cost'].grid(row=0, column=0)
 
@@ -538,7 +634,7 @@ class CompleteWhisperKeyGUI:
         total_frame = ttk.LabelFrame(parent, text="All Time", padding="15")
         total_frame.grid(row=0, column=2, sticky=(tk.W, tk.E), padx=(5, 0))
 
-        self.cost_labels['total_cost'] = ttk.Label(total_frame, text="$0.00",
+        self.cost_labels['total_cost'] = ttk.Label(total_frame, text="$0.0000",
                                                    font=("Segoe UI", 16, "bold"))
         self.cost_labels['total_cost'].grid(row=0, column=0)
 
@@ -557,7 +653,7 @@ class CompleteWhisperKeyGUI:
 
         # Create treeview for daily costs
         columns = ('Date', 'Cost (USD)', 'Details', 'Last Updated')
-        self.daily_tree = ttk.Treeview(tab_frame, columns=columns, show='headings')
+        self.daily_tree = ttk.Treeview(tab_frame, columns=columns, show='headings', height=15)
 
         # Configure columns
         self.daily_tree.heading('Date', text='Date')
@@ -569,6 +665,11 @@ class CompleteWhisperKeyGUI:
         self.daily_tree.column('Cost (USD)', width=100)
         self.daily_tree.column('Details', width=300)
         self.daily_tree.column('Last Updated', width=150)
+        
+        # Configure treeview font for better readability
+        style = ttk.Style()
+        style.configure("Daily.Treeview", font=("Consolas", 9))
+        self.daily_tree.configure(style="Daily.Treeview")
 
         # Add scrollbar
         daily_scrollbar = ttk.Scrollbar(tab_frame, orient="vertical", command=self.daily_tree.yview)
@@ -581,6 +682,10 @@ class CompleteWhisperKeyGUI:
         # Bind double-click for detailed view
         self.daily_tree.bind("<Double-Button-1>", self.show_daily_details)
 
+        # Bind column click event for sorting
+        for col in self.daily_tree['columns']:
+            self.daily_tree.heading(col, command=lambda c=col: self.sort_treeview_column(self.daily_tree, c))
+
     def create_weekly_costs_tab(self):
         """Create weekly cost summary tab"""
         tab_frame = ttk.Frame(self.cost_notebook)
@@ -592,7 +697,7 @@ class CompleteWhisperKeyGUI:
 
         # Create treeview for weekly costs
         columns = ('Week', 'Total Cost', 'Avg Daily', 'Days Active')
-        self.weekly_tree = ttk.Treeview(tab_frame, columns=columns, show='headings')
+        self.weekly_tree = ttk.Treeview(tab_frame, columns=columns, show='headings', height=15)
 
         # Configure columns
         self.weekly_tree.heading('Week', text='Week of')
@@ -604,6 +709,11 @@ class CompleteWhisperKeyGUI:
         self.weekly_tree.column('Total Cost', width=120)
         self.weekly_tree.column('Avg Daily', width=120)
         self.weekly_tree.column('Days Active', width=100)
+        
+        # Configure treeview font for better readability
+        style = ttk.Style()
+        style.configure("Weekly.Treeview", font=("Consolas", 9))
+        self.weekly_tree.configure(style="Weekly.Treeview")
 
         # Add scrollbar
         weekly_scrollbar = ttk.Scrollbar(tab_frame, orient="vertical", command=self.weekly_tree.yview)
@@ -612,6 +722,13 @@ class CompleteWhisperKeyGUI:
         # Pack widgets
         self.weekly_tree.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         weekly_scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
+
+        # Bind column click event for sorting
+        for col in self.weekly_tree['columns']:
+            self.weekly_tree.heading(col, command=lambda c=col: self.sort_treeview_column(self.weekly_tree, c))
+
+        # Bind double-click for detailed view
+        self.weekly_tree.bind("<Double-Button-1>", self.show_weekly_details)
 
     def create_monthly_costs_tab(self):
         """Create monthly cost summary tab"""
@@ -624,7 +741,7 @@ class CompleteWhisperKeyGUI:
 
         # Create treeview for monthly costs
         columns = ('Month', 'Total Cost', 'Days Active', 'Avg Daily', 'Trend')
-        self.monthly_tree = ttk.Treeview(tab_frame, columns=columns, show='headings')
+        self.monthly_tree = ttk.Treeview(tab_frame, columns=columns, show='headings', height=15)
 
         # Configure columns
         self.monthly_tree.heading('Month', text='Month')
@@ -638,6 +755,11 @@ class CompleteWhisperKeyGUI:
         self.monthly_tree.column('Days Active', width=100)
         self.monthly_tree.column('Avg Daily', width=120)
         self.monthly_tree.column('Trend', width=80)
+        
+        # Configure treeview font for better readability
+        style = ttk.Style()
+        style.configure("Monthly.Treeview", font=("Consolas", 9))
+        self.monthly_tree.configure(style="Monthly.Treeview")
 
         # Add scrollbar
         monthly_scrollbar = ttk.Scrollbar(tab_frame, orient="vertical", command=self.monthly_tree.yview)
@@ -647,10 +769,21 @@ class CompleteWhisperKeyGUI:
         self.monthly_tree.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         monthly_scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
 
+        # Bind column click event for sorting
+        for col in self.monthly_tree['columns']:
+            self.monthly_tree.heading(col, command=lambda c=col: self.sort_treeview_column(self.monthly_tree, c))
+
     # Event handler methods
     def manual_record(self):
         """Manually trigger recording"""
-        self.app.toggle_recording()
+        if not self.is_recording:
+            self.app.toggle_recording()
+            self.record_button.configure(text="Stop Recording", style="Recording.TButton")
+            self.is_recording = True
+        else:
+            self.app.toggle_recording()
+            self.record_button.configure(text="Start Recording", style="TButton")
+            self.is_recording = False
 
     def toggle_realtime(self):
         """Toggle realtime transcription"""
@@ -670,17 +803,13 @@ class CompleteWhisperKeyGUI:
 
     def update_status(self, status: str):
         """Update the status label - thread-safe version"""
-
         def _update_status_main_thread():
             if self.status_label:
                 self.status_label.configure(text=status)
                 logger.debug(f"Status updated: {status}")
 
         # Ensure GUI operations run on main thread
-        if self.window and hasattr(self.window, 'after'):
-            self.window.after(0, _update_status_main_thread)
-        else:
-            _update_status_main_thread()
+        self.safe_gui_call(_update_status_main_thread)
 
     def update_cost_display(self):
         """Update the cost display with current month-to-date spend - thread-safe version"""
@@ -693,8 +822,8 @@ class CompleteWhisperKeyGUI:
                 monthly_spend = self.billing.get_monthly_spend(now.year, now.month)
 
                 if self.cost_labels['month_cost']:
-                    self.cost_labels['month_cost'].configure(text=f"${monthly_spend:.2f}")
-                    logger.debug(f"Cost display updated: ${monthly_spend:.2f}")
+                    self.cost_labels['month_cost'].configure(text=f"${monthly_spend:.4f}")
+                    logger.debug(f"Cost display updated: ${monthly_spend:.4f}")
 
             except Exception as e:
                 logger.error(f"Error updating cost display: {e}")
@@ -702,10 +831,7 @@ class CompleteWhisperKeyGUI:
                     self.cost_labels['month_cost'].configure(text="Cost data unavailable (will retry)")
 
         # Ensure GUI operations run on main thread
-        if self.window and hasattr(self.window, 'after'):
-            self.window.after(0, _update_cost_display_main_thread)
-        else:
-            _update_cost_display_main_thread()
+        self.safe_gui_call(_update_cost_display_main_thread)
 
     def refresh_costs(self):
         """Manual cost refresh triggered by user"""
@@ -714,11 +840,15 @@ class CompleteWhisperKeyGUI:
             return
 
         def refresh_callback(success):
-            if success:
-                self.update_cost_display()
-                self.update_status("[OK] Cost data refreshed successfully!")
-            else:
-                self.update_status("[ERROR] Failed to refresh cost data. Check your API key and connection.")
+            def _update_gui():
+                if success:
+                    self.update_cost_display()
+                    self.update_status("[OK] Cost data refreshed successfully!")
+                else:
+                    self.update_status("[ERROR] Failed to refresh cost data. Check your API key and connection.")
+            
+            # Ensure GUI updates run on main thread
+            self.safe_gui_call(_update_gui)
 
         # Run refresh in background thread
         threading.Thread(target=lambda: self.billing.manual_refresh(refresh_callback), daemon=True).start()
@@ -808,23 +938,23 @@ class CompleteWhisperKeyGUI:
                 if device['max_input_channels'] > 0:  # Input devices only
                     device_names.append(f"{i}: {device['name']}")
 
-            if self.device_combo:
-                self.device_combo['values'] = device_names
+            if self.audio_device_menu:
+                self.audio_device_menu['values'] = device_names
                 if device_names:
                     # Set default device
                     default_device = sd.query_devices(kind='input')
                     default_name = f"{default_device['index']}: {default_device['name']}"
                     if default_name in device_names:
-                        self.device_combo.set(default_name)
+                        self.audio_device_menu.set(default_name)
                     else:
-                        self.device_combo.set(device_names[0])
+                        self.audio_device_menu.set(device_names[0])
 
             logger.debug(f"Audio devices updated: {len(device_names)} devices found")
 
         except Exception as e:
             logger.error(f"Error updating audio devices: {e}")
-            if self.device_combo:
-                self.device_combo['values'] = ["Error loading devices"]
+            if self.audio_device_menu:
+                self.audio_device_menu['values'] = ["Error loading devices"]
 
     def record_hotkey(self):
         """Record a new hotkey combination"""
@@ -864,7 +994,8 @@ class CompleteWhisperKeyGUI:
                     self.update_status("Hotkey recording timed out")
                     self.record_hotkey_button.configure(text="Record", state='normal')
 
-            threading.Timer(10.0, auto_stop).start()
+            self.hotkey_recorder._timer = threading.Timer(10.0, auto_stop)
+            self.hotkey_recorder._timer.start()
 
         except Exception as e:
             logger.error(f"Error starting hotkey recording: {e}")
@@ -908,7 +1039,8 @@ class CompleteWhisperKeyGUI:
                     self.update_status("Realtime hotkey recording timed out")
                     self.record_realtime_hotkey_button.configure(text="Record", state='normal')
 
-            threading.Timer(10.0, auto_stop).start()
+            self.hotkey_recorder._timer = threading.Timer(10.0, auto_stop)
+            self.hotkey_recorder._timer.start()
 
         except Exception as e:
             logger.error(f"Error starting realtime hotkey recording: {e}")
@@ -999,7 +1131,7 @@ class CompleteWhisperKeyGUI:
                 # Add to overview listbox
                 for record in records:
                     try:
-                        date = record.timestamp.split('T')[0] if 'T' in record.timestamp else record.timestamp
+                        date = self.format_timestamp_natural(record.timestamp)
                         preview = record.text[:50] + "..." if len(record.text) > 50 else record.text
                         self.overview_listbox.insert(tk.END, f"{date}: {preview}")
                     except Exception as e:
@@ -1027,23 +1159,92 @@ class CompleteWhisperKeyGUI:
             # Extract date from selected text (format: "YYYY-MM-DD: text...")
             if ": " in selected_text:
                 date_str = selected_text.split(": ")[0]
+                preview_text = ": ".join(selected_text.split(": ")[1:])
 
-                # Find matching record in database
-                records = self.db.get_recent_transcriptions(50)
+                # Find matching record in database by date and preview
+                records = self.db.get_recent_transcriptions(100)
                 for record in records:
-                    record_date = record.timestamp.split('T')[0] if 'T' in record.timestamp else record.timestamp
-                    if record_date == date_str:
+                    record_date = self.format_timestamp_natural(record.timestamp)
+                    record_preview = record.text[:50] + "..." if len(record.text) > 50 else record.text
+                    
+                    if record_date == date_str and record_preview == preview_text:
                         # Copy full text to clipboard
                         pyperclip.copy(record.text)
                         self.update_status("[OK] Transcription copied to clipboard!")
                         return
 
-            # Fallback: copy the selected text as is
+                # Fallback: find by date only if preview doesn't match exactly
+                for record in records:
+                    record_date = self.format_timestamp_natural(record.timestamp)
+                    if record_date == date_str:
+                        pyperclip.copy(record.text)
+                        self.update_status("[OK] Transcription copied to clipboard!")
+                        return
+            
+            # Final fallback: copy the selected text as is
             pyperclip.copy(selected_text)
             self.update_status("[OK] Text copied to clipboard")
 
         except Exception as e:
             logger.error(f"Error copying selected transcription: {e}")
+            self.update_status("[ERROR] Error copying transcription")
+
+    def update_transcriptions_tree(self, records=None):
+        """Update the transcriptions tree view with token and cost data."""
+        try:
+            logger.info("Updating transcriptions tree...")
+            self.transcription_records = {}  # Clear and store records for sorting
+
+            # Clear existing items
+            if hasattr(self, 'transcriptions_tree') and self.transcriptions_tree:
+                for item in self.transcriptions_tree.get_children():
+                    self.transcriptions_tree.delete(item)
+
+                # Get all transcriptions if no specific records are provided
+                if records is None:
+                    records = self.db.get_all_transcriptions(500) # Increased limit
+                logger.info(f"Retrieved {len(records)} records for transcriptions tree")
+
+                # Add to treeview
+                for record in records:
+                    try:
+                        ts = self.format_timestamp_natural(record.timestamp)
+                    except (ValueError, TypeError):
+                        ts = record.timestamp
+
+                    preview = record.text[:70] + "..." if len(record.text) > 70 else record.text
+                    tokens = f"{record.input_tokens}→{record.output_tokens}"
+                    cost = self.format_cost(record.cost)
+                    duration = self.format_duration(record.duration_seconds)
+
+                    # Insert item and store the record object with the item's ID
+                    item_id = self.transcriptions_tree.insert('', tk.END, values=(
+                        ts, preview, tokens, cost, duration, record.engine, record.model
+                    ))
+                    self.transcription_records[item_id] = record
+
+        except Exception as e:
+            logger.error(f"Error updating transcriptions tree: {e}", exc_info=True)
+
+    def copy_from_tree(self, event=None):
+        """Copy selected transcription from tree view using the stored record."""
+        try:
+            selection = self.transcriptions_tree.selection()
+            if not selection:
+                self.update_status("[WARN] Nothing is selected.")
+                return
+
+            item_id = selection[0]
+            if item_id in self.transcription_records:
+                record = self.transcription_records[item_id]
+                pyperclip.copy(record.text)
+                self.update_status("[OK] Transcription copied to clipboard!")
+            else:
+                # This can happen if a sort hasn't completed or list is out of sync
+                self.update_status("[ERROR] Could not find record. Please refresh and try again.")
+
+        except Exception as e:
+            logger.error(f"Error copying from tree: {e}")
             self.update_status("[ERROR] Error copying transcription")
 
     def start_cost_tracking(self):
@@ -1064,8 +1265,13 @@ class CompleteWhisperKeyGUI:
                     if self.window:  # Only continue if window still exists
                         try:
                             logger.info("Running periodic cost data refresh")
-                            self.billing.manual_refresh(lambda success: 
-                                logger.info(f"Periodic cost refresh {'succeeded' if success else 'failed'}"))
+                            
+                            def periodic_callback(success):
+                                def _log_result():
+                                    logger.info(f"Periodic cost refresh {'succeeded' if success else 'failed'}")
+                                self.safe_gui_call(_log_result)
+                            
+                            self.billing.manual_refresh(periodic_callback)
                             self.update_cost_tracking_data()
                             
                             # Schedule next refresh (every hour)
@@ -1126,19 +1332,22 @@ class CompleteWhisperKeyGUI:
                 logger.info(
                     f"Transcription counts - Today: {today_transcriptions}, Month: {month_transcriptions}, Total: {total_transcriptions}")
 
-                # Update labels with error checking
+                # Update labels with error checking and formatting
                 if 'today_cost' in self.cost_labels and self.cost_labels['today_cost']:
-                    self.cost_labels['today_cost'].configure(text=f"${today_cost:.2f}" if today_cost is not None else "$0.00")
+                    formatted_cost = self.format_cost(today_cost) if today_cost is not None else self.format_cost(0.0)
+                    self.cost_labels['today_cost'].configure(text=formatted_cost)
                     self.cost_labels['today_requests'].configure(text=f"{today_transcriptions} requests")
                     logger.debug("Updated today's cost labels")
 
                 if 'month_cost' in self.cost_labels and self.cost_labels['month_cost']:
-                    self.cost_labels['month_cost'].configure(text=f"${month_cost:.2f}" if month_cost is not None else "$0.00")
+                    formatted_cost = self.format_cost(month_cost) if month_cost is not None else self.format_cost(0.0)
+                    self.cost_labels['month_cost'].configure(text=formatted_cost)
                     self.cost_labels['month_requests'].configure(text=f"{month_transcriptions} requests")
                     logger.debug("Updated monthly cost labels")
 
                 if 'total_cost' in self.cost_labels and self.cost_labels['total_cost']:
-                    self.cost_labels['total_cost'].configure(text=f"${total_cost:.2f}" if total_cost is not None else "$0.00")
+                    formatted_cost = self.format_cost(total_cost) if total_cost is not None else self.format_cost(0.0)
+                    self.cost_labels['total_cost'].configure(text=formatted_cost)
                     self.cost_labels['total_requests'].configure(text=f"{total_transcriptions} requests")
                     logger.debug("Updated total cost labels")
 
@@ -1154,10 +1363,7 @@ class CompleteWhisperKeyGUI:
                 logger.error(f"Error updating cost tracking data: {e}", exc_info=True)
 
         # Ensure GUI operations run on main thread
-        if self.window and hasattr(self.window, 'after'):
-            self.window.after(0, _update_cost_tracking_main_thread)
-        else:
-            _update_cost_tracking_main_thread()
+        self.safe_gui_call(_update_cost_tracking_main_thread)
 
     def search_transcriptions(self):
         """Search and filter transcriptions based on user input."""
@@ -1174,50 +1380,140 @@ class CompleteWhisperKeyGUI:
             logger.error(f"Error during transcription search: {e}")
             self.update_status("Error during search.")
 
-    def update_transcriptions_tree(self, records=None):
-        """Update the transcriptions tree view with token and cost data."""
+    # Helper methods for formatting
+    def format_duration(self, seconds):
+        """Format duration based on current toggle setting"""
+        if self.duration_format_hms:
+            hours = int(seconds // 3600)
+            minutes = int((seconds % 3600) // 60)
+            secs = int(seconds % 60)
+            
+            parts = []
+            if hours > 0:
+                parts.append(f"{hours}h")
+            if minutes > 0:
+                parts.append(f"{minutes}m")
+            if secs > 0 or not parts:  # Always show seconds if no other parts
+                parts.append(f"{secs}s")
+            
+            return " ".join(parts)
+        else:
+            return f"{seconds:.2f}s"
+    
+    def format_cost(self, cost_usd):
+        """Format cost based on current toggle setting"""
+        if self.cost_format_dollars:
+            return f"${cost_usd:.4f}"
+        else:
+            return f"{cost_usd * 100:.4f}¢"
+    
+    def toggle_duration_format(self):
+        """Toggle between seconds and HMS format"""
+        self.duration_format_hms = not self.duration_format_hms
+        self.update_transcriptions_tree()
+        self.update_cost_tracking_data()
+        format_text = "HMS" if self.duration_format_hms else "Seconds"
+        if hasattr(self, 'duration_toggle_btn'):
+            self.duration_toggle_btn.configure(text=f"Duration: {format_text}")
+        self.update_status(f"Duration format changed to {format_text}")
+    
+    def toggle_cost_format(self):
+        """Toggle between dollars and cents format"""
+        self.cost_format_dollars = not self.cost_format_dollars
+        self.update_transcriptions_tree()
+        self.update_cost_tracking_data()
+        format_text = "Dollars" if self.cost_format_dollars else "Cents"
+        if hasattr(self, 'cost_toggle_btn'):
+            self.cost_toggle_btn.configure(text=f"Cost: {format_text}")
+        if hasattr(self, 'cost_tracking_toggle_btn'):
+            self.cost_tracking_toggle_btn.configure(text=f"Cost: {format_text}")
+        self.update_status(f"Cost format changed to {format_text}")
+    
+    def sort_treeview_column(self, treeview, col, reverse=False):
+        """Sort a treeview column, with smart numeric/string sorting."""
+        # Determine sort direction
+        if getattr(self, '_last_sort_col', None) == col:
+            reverse = not getattr(self, '_last_sort_reverse', False)
+        else:
+            reverse = False
+
+        self._last_sort_col = col
+        self._last_sort_reverse = reverse
+
+        def extract_numeric_value(text_value):
+            """Extract numeric value from formatted text, returns None if not numeric."""
+            try:
+                # Handle cost values: remove $, ¢ symbols
+                raw = str(text_value).replace('$', '').replace('¢', '')
+                
+                # Handle duration values: convert HMS to seconds or extract seconds
+                if 'h' in raw or 'm' in raw:
+                    # HMS format like "1h 3m 7s"
+                    total_seconds = 0
+                    raw = raw.replace('s', '')  # Remove trailing 's'
+                    
+                    if 'h' in raw:
+                        parts = raw.split('h')
+                        total_seconds += int(parts[0]) * 3600
+                        raw = parts[1].strip() if len(parts) > 1 else ''
+                    
+                    if 'm' in raw:
+                        parts = raw.split('m')
+                        total_seconds += int(parts[0]) * 60
+                        raw = parts[1].strip() if len(parts) > 1 else ''
+                    
+                    if raw:  # Remaining seconds
+                        total_seconds += int(raw)
+                    
+                    return float(total_seconds)
+                else:
+                    # Remove other common symbols and try direct conversion
+                    raw = raw.replace('s', '').replace(',', '').strip()
+                    if raw:
+                        return float(raw)
+                    return 0.0
+            except (ValueError, TypeError, AttributeError):
+                return None
+
         try:
-            logger.info("Updating transcriptions tree...")
+            # Attempt numeric sorting first
+            numeric_data = []
+            for item in treeview.get_children(''):
+                value = treeview.set(item, col)
+                numeric_val = extract_numeric_value(value)
+                if numeric_val is not None:
+                    numeric_data.append((numeric_val, item))
+                else:
+                    # If any value can't be converted, fall back to string sorting
+                    numeric_data = None
+                    break
+            
+            if numeric_data is not None:
+                # All values were numeric, sort numerically
+                data = numeric_data
+            else:
+                # Fall back to case-insensitive string sorting
+                data = [(treeview.set(item, col).lower(), item) for item in treeview.get_children('')]
+            
+        except Exception:
+            # Final fallback to string sorting
+            data = [(treeview.set(item, col).lower(), item) for item in treeview.get_children('')]
 
-            # Clear existing items
-            if hasattr(self, 'transcriptions_tree') and self.transcriptions_tree:
-                for item in self.transcriptions_tree.get_children():
-                    self.transcriptions_tree.delete(item)
+        # Sort the data
+        data.sort(reverse=reverse)
 
-                # Get all transcriptions if no specific records are provided
-                if records is None:
-                    records = self.db.get_all_transcriptions(100)
-                logger.info(f"Retrieved {len(records)} records for transcriptions tree")
+        # Rearrange items in the treeview
+        for index, item in enumerate([d[1] for d in data]):
+            treeview.move(item, '', index)
 
-                # Add to treeview
-                for record in records:
-                    try:
-                        # Format timestamp
-                        try:
-                            ts = datetime.fromisoformat(record.timestamp).strftime('%Y-%m-%d %H:%M:%S')
-                        except (ValueError, TypeError):
-                            ts = record.timestamp
-
-                        preview = record.text[:70] + "..." if len(record.text) > 70 else record.text
-                        tokens = f"{record.input_tokens}/{record.output_tokens}"
-                        cost = f"{record.cost:.6f}"
-                        duration = f"{record.duration_seconds:.2f}"
-
-                        self.transcriptions_tree.insert('', tk.END, values=(
-                            ts,
-                            preview,
-                            tokens,
-                            cost,
-                            duration,
-                            record.engine
-                        ))
-                    except Exception as e:
-                        logger.error(f"Error processing tree record: {e}")
-
-            logger.info("Transcriptions tree updated successfully")
-
-        except Exception as e:
-            logger.error(f"Error updating transcriptions tree: {e}", exc_info=True)
+        # Update column heading to show sort direction
+        for column in treeview['columns']:
+            current_text = treeview.heading(column)['text'].replace(' ↑', '').replace(' ↓', '')
+            if column == col:
+                arrow = ' ↓' if reverse else ' ↑'
+                treeview.heading(column, text=current_text + arrow)
+            else:
+                treeview.heading(column, text=current_text)
 
     # Window management methods
     def show_window(self):
@@ -1309,29 +1605,6 @@ class CompleteWhisperKeyGUI:
         except Exception as e:
             logger.error(f"Error during cleanup: {e}")
 
-    def copy_from_tree(self, event=None):
-        """Copy selected transcription from tree view"""
-        try:
-            selection = self.transcriptions_tree.selection()
-            if not selection:
-                self.update_status("[WARN] Please select a transcription to copy")
-                return
-
-            item = self.transcriptions_tree.item(selection[0])
-            date = item['values'][0]
-
-            # Find the corresponding record and copy full text
-            all_records = self.db.get_all_transcriptions(100)
-            for record in all_records:
-                record_date = record.timestamp.split('T')[0] if 'T' in record.timestamp else record.timestamp
-                if record_date == date:
-                    pyperclip.copy(record.text)
-                    self.update_status("[OK] Transcription copied to clipboard!")
-                    break
-
-        except Exception as e:
-            logger.error(f"Error copying from tree: {e}")
-
     def show_daily_details(self, event=None):
         """Show detailed breakdown for a selected day"""
         try:
@@ -1361,11 +1634,14 @@ class CompleteWhisperKeyGUI:
 
                         # Main frame
                         main_frame = ttk.Frame(detail_window, padding="20")
-                        main_frame.pack(fill="both", expand=True)
+                        main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+                        detail_window.columnconfigure(0, weight=1)
+                        detail_window.rowconfigure(0, weight=1)
 
                         # Title
                         ttk.Label(main_frame, text=f"Cost Details for {date}",
-                                  font=("Segoe UI", 14, "bold")).pack(pady=(0, 20))
+                                  font=("Segoe UI", 14, "bold")).grid(row=0, column=0,
+                                                                                           pady=(0, 20))
 
                         # Create treeview for line items
                         columns = ('Service', 'Cost (USD)')
@@ -1382,11 +1658,11 @@ class CompleteWhisperKeyGUI:
                         tree.configure(yscrollcommand=scrollbar.set)
 
                         # Pack widgets
-                        tree.pack(side="left", fill="both", expand=True)
-                        scrollbar.pack(side="right", fill="y")
+                        tree.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+                        scrollbar.grid(row=1, column=1, sticky=(tk.N, tk.S))
 
                         main_frame.columnconfigure(0, weight=1)
-                        main_frame.rowconfigure(0, weight=1)
+                        main_frame.rowconfigure(1, weight=1)
 
                         # Populate line items
                         total = 0.0
@@ -1398,7 +1674,7 @@ class CompleteWhisperKeyGUI:
 
                         # Total label
                         ttk.Label(main_frame, text=f"Total: ${total:.2f}",
-                                  font=("Segoe UI", 12, "bold")).pack(pady=(10, 0))
+                                  font=("Segoe UI", 12, "bold")).grid(row=2, column=0, pady=(10, 0))
 
                     except Exception as e:
                         logger.error(f"Error parsing cost details: {e}")
@@ -1407,6 +1683,80 @@ class CompleteWhisperKeyGUI:
 
         except Exception as e:
             logger.error(f"Error showing daily details: {e}")
+
+    def show_weekly_details(self, event=None):
+        """Show detailed breakdown for a selected week"""
+        try:
+            selection = self.weekly_tree.selection()
+            if not selection:
+                return
+
+            item = self.weekly_tree.item(selection[0])
+            week = item['values'][0]
+
+            # Get detailed cost data for this week
+            costs = self.billing.get_cost_breakdown(90) if self.billing else []
+
+            # Create detail window
+            detail_window = tk.Toplevel(self.window)
+            detail_window.title(f"Cost Details - {week}")
+            detail_window.geometry("500x400")
+            detail_window.transient(self.window)
+
+            # Main frame
+            main_frame = ttk.Frame(detail_window, padding="20")
+            main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+            detail_window.columnconfigure(0, weight=1)
+            detail_window.rowconfigure(0, weight=1)
+
+            # Title
+            ttk.Label(main_frame, text=f"Cost Details for {week}",
+                      font=("Segoe UI", 14, "bold")).grid(row=0, column=0,
+                                                                                           pady=(0, 20))
+
+            # Create treeview for line items
+            columns = ('Date', 'Cost (USD)', 'Details', 'Last Updated')
+            tree = ttk.Treeview(main_frame, columns=columns, show='headings', height=10)
+
+            tree.heading('Date', text='Date')
+            tree.heading('Cost (USD)', text='Cost (USD)')
+            tree.heading('Details', text='Usage Details')
+            tree.heading('Last Updated', text='Last Updated')
+
+            tree.column('Date', width=100)
+            tree.column('Cost (USD)', width=100)
+            tree.column('Details', width=200)
+            tree.column('Last Updated', width=150)
+
+            # Add scrollbar
+            scrollbar = ttk.Scrollbar(main_frame, orient="vertical", command=tree.yview)
+            tree.configure(yscrollcommand=scrollbar.set)
+
+            # Pack widgets
+            tree.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+            scrollbar.grid(row=1, column=1, sticky=(tk.N, tk.S))
+
+            main_frame.columnconfigure(0, weight=1)
+            main_frame.rowconfigure(1, weight=1)
+
+            # Populate line items
+            total = 0.0
+            for cost in costs:
+                if cost.date.startswith(week):
+                    tree.insert('', tk.END, values=(
+                        cost.date,
+                        self.format_cost(cost.cost_usd),
+                        "Details available",
+                        cost.last_updated.split('T')[0] if 'T' in cost.last_updated else cost.last_updated
+                    ))
+                    total += cost.cost_usd
+
+            # Total label
+            ttk.Label(main_frame, text=f"Total: {self.format_cost(total)}",
+                      font=("Segoe UI", 12, "bold")).grid(row=2, column=0, pady=(10, 0))
+
+        except Exception as e:
+            logger.error(f"Error showing weekly details: {e}")
 
     def update_daily_costs_tree(self):
         """Update the daily costs tree view"""
@@ -1427,15 +1777,16 @@ class CompleteWhisperKeyGUI:
                     import json
                     raw_data = json.loads(cost.raw_json)
                     line_items = raw_data.get('line_items', [])
+
                     details = f"{len(line_items)} services used"
                 except:
                     details = "Details available"
 
-                last_updated = cost.last_updated.split('T')[0] if 'T' in cost.last_updated else cost.last_updated
+                last_updated = self.format_timestamp_natural(cost.last_updated)
 
                 self.daily_tree.insert('', tk.END, values=(
-                    cost.date,
-                    f"${cost.cost_usd:.4f}",
+                    self.format_timestamp_natural(cost.date + "T00:00:00"),  # Add time for parsing
+                    self.format_cost(cost.cost_usd),
                     details,
                     last_updated
                 ))
@@ -1475,8 +1826,8 @@ class CompleteWhisperKeyGUI:
 
                 self.weekly_tree.insert('', tk.END, values=(
                     week_start,
-                    f"${data['total']:.2f}",
-                    f"${avg_daily:.2f}",
+                    self.format_cost(data['total']),
+                    self.format_cost(avg_daily),
                     data['days']
                 ))
 
@@ -1527,17 +1878,19 @@ class CompleteWhisperKeyGUI:
 
                 self.monthly_tree.insert('', tk.END, values=(
                     month,
-                    f"${data['total']:.2f}",
+                    self.format_cost(data['total']),
                     data['days'],
-                    f"${avg_daily:.2f}",
+                    self.format_cost(avg_daily),
                     trend
                 ))
 
         except Exception as e:
             logger.error(f"Error updating monthly costs tree: {e}")
 
-    # Additional helper methods for missing references
-    @property
-    def recent_listbox(self):
-        """Get the current active listbox (overview or transcriptions)"""
-        return getattr(self, 'overview_listbox', None)
+    def on_recording_finished(self):
+        """Called when recording actually finishes to reset button state"""
+        def _reset_button():
+            self.record_button.configure(text="Start Recording", style="TButton")
+            self.is_recording = False
+        
+        self.safe_gui_call(_reset_button)

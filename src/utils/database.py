@@ -55,6 +55,7 @@ class TranscriptionDatabase:
     def init_database(self):
         """Initialize the database with required tables"""
         with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row  # Ensure we can access columns by name
             conn.execute('''
                          CREATE TABLE IF NOT EXISTS transcriptions
                          (
@@ -70,7 +71,10 @@ class TranscriptionDatabase:
                              text_length INTEGER NOT NULL,
                              language TEXT,
                              processing_time_ms INTEGER NOT NULL,
-                             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                             input_tokens INTEGER DEFAULT 0,
+                             output_tokens INTEGER DEFAULT 0,
+                             cost REAL DEFAULT 0.0
                          )
                          ''')
 
@@ -134,10 +138,40 @@ class TranscriptionDatabase:
 
     def _add_column_if_not_exists(self, conn, table_name, column_name, column_type):
         """Utility to add a column to a table if it doesn't exist."""
-        cursor = conn.execute(f'PRAGMA table_info({table_name})')
-        columns = [row[1] for row in cursor.fetchall()]
-        if column_name not in columns:
-            conn.execute(f'ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}')
+        try:
+            cursor = conn.execute(f"PRAGMA table_info({table_name})")
+            columns = [row['name'] for row in cursor.fetchall()]
+            if column_name not in columns:
+                conn.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}")
+                print(f"Added column '{column_name}' to table '{table_name}'.")
+        except sqlite3.Error as e:
+            print(f"Database error while adding column: {e}")
+
+    def _row_to_record(self, row) -> TranscriptionRecord:
+        """Convert a database row to a TranscriptionRecord object with proper type casting."""
+        try:
+            # Use column names for robustness, requires conn.row_factory = sqlite3.Row
+            return TranscriptionRecord(
+                id=int(row['id']),
+                timestamp=str(row['timestamp']),
+                text=str(row['text']),
+                duration_seconds=float(row['duration_seconds']) if row['duration_seconds'] is not None else 0.0,
+                engine=str(row['engine']),
+                model=str(row['model']),
+                confidence_score=float(row['confidence_score']) if row['confidence_score'] is not None else None,
+                audio_device=str(row['audio_device']),
+                hotkey_used=str(row['hotkey_used']),
+                text_length=int(row['text_length']) if row['text_length'] is not None else 0,
+                language=str(row['language']) if row['language'] is not None else None,
+                processing_time_ms=int(row['processing_time_ms']) if row['processing_time_ms'] is not None else 0,
+                input_tokens=int(row['input_tokens']) if 'input_tokens' in row.keys() and row['input_tokens'] is not None else 0,
+                output_tokens=int(row['output_tokens']) if 'output_tokens' in row.keys() and row['output_tokens'] is not None else 0,
+                cost=float(row['cost']) if 'cost' in row.keys() and row['cost'] is not None else 0.0
+            )
+        except (ValueError, TypeError, KeyError) as e:
+            # Log error and return a default record to prevent crashes
+            print(f"[ERROR] Could not parse database record: {row}. Error: {e}")
+            return TranscriptionRecord()
 
     def add_transcription(self, record: TranscriptionRecord) -> int:
         """Add a new transcription record to the database"""
@@ -179,108 +213,53 @@ class TranscriptionDatabase:
         try:
             with sqlite3.connect(self.db_path) as conn:
                 conn.row_factory = sqlite3.Row
-                cursor = conn.execute('''
-                                      SELECT * FROM transcriptions
-                                      ORDER BY timestamp DESC
-                                      LIMIT ?
-                                      ''', (limit,))
+                cursor = conn.cursor()
+                cursor.execute('''
+                                       SELECT * FROM transcriptions
+                                       ORDER BY timestamp DESC
+                                       LIMIT ?
+                                       ''', (limit,))
 
-                records = []
-                for row in cursor.fetchall():
-                    record = TranscriptionRecord(
-                        id=row['id'],
-                        timestamp=row['timestamp'],
-                        text=row['text'],
-                        duration_seconds=row['duration_seconds'],
-                        engine=row['engine'],
-                        model=row['model'],
-                        confidence_score=row['confidence_score'],
-                        audio_device=row['audio_device'],
-                        hotkey_used=row['hotkey_used'],
-                        text_length=row['text_length'],
-                        language=row['language'],
-                        processing_time_ms=row['processing_time_ms'],
-                        input_tokens=row['input_tokens'] if 'input_tokens' in row.keys() else 0,
-                        output_tokens=row['output_tokens'] if 'output_tokens' in row.keys() else 0,
-                        cost=row['cost'] if 'cost' in row.keys() else 0.0
-                    )
-                    records.append(record)
-
+                records = [self._row_to_record(row) for row in cursor.fetchall()]
                 return records
-
         except sqlite3.Error as e:
             print(f"Database error in get_recent_transcriptions: {e}")
             return []
-        finally:
-            if conn:
-                conn.close()
-
-    def search_transcriptions(self, query: str, limit: int = 50) -> List[TranscriptionRecord]:
-        """Search transcriptions by text content"""
-        with sqlite3.connect(self.db_path) as conn:
-            conn.row_factory = sqlite3.Row
-            cursor = conn.execute('''
-                                  SELECT *
-                                  FROM transcriptions
-                                  WHERE text LIKE ?
-                                  ORDER BY created_at DESC LIMIT ?
-                                  ''', (f'%{query}%', limit))
-
-            records = []
-            for row in cursor.fetchall():
-                record = TranscriptionRecord(
-                    id=row['id'],
-                    timestamp=row['timestamp'],
-                    text=row['text'],
-                    duration_seconds=row['duration_seconds'],
-                    engine=row['engine'],
-                    model=row['model'],
-                    confidence_score=row['confidence_score'],
-                    audio_device=row['audio_device'],
-                    hotkey_used=row['hotkey_used'],
-                    text_length=row['text_length'],
-                    language=row['language'],
-                    processing_time_ms=row['processing_time_ms'],
-                    input_tokens=row['input_tokens'] if 'input_tokens' in row.keys() else 0,
-                    output_tokens=row['output_tokens'] if 'output_tokens' in row.keys() else 0,
-                    cost=row['cost'] if 'cost' in row.keys() else 0.0
-                )
-                records.append(record)
-
-            return records
 
     def get_all_transcriptions(self, limit: int = 1000) -> List[TranscriptionRecord]:
         """Get all transcriptions with optional limit"""
-        with sqlite3.connect(self.db_path) as conn:
-            conn.row_factory = sqlite3.Row
-            cursor = conn.execute('''
-                                  SELECT *
-                                  FROM transcriptions
-                                  ORDER BY created_at DESC LIMIT ?
-                                  ''', (limit,))
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                conn.row_factory = sqlite3.Row
+                cursor = conn.cursor()
+                cursor.execute("SELECT * FROM transcriptions ORDER BY created_at DESC LIMIT ?", (limit,))
 
-            records = []
-            for row in cursor.fetchall():
-                record = TranscriptionRecord(
-                    id=row['id'],
-                    timestamp=row['timestamp'],
-                    text=row['text'],
-                    duration_seconds=row['duration_seconds'],
-                    engine=row['engine'],
-                    model=row['model'],
-                    confidence_score=row['confidence_score'],
-                    audio_device=row['audio_device'],
-                    hotkey_used=row['hotkey_used'],
-                    text_length=row['text_length'],
-                    language=row['language'],
-                    processing_time_ms=row['processing_time_ms'],
-                    input_tokens=row['input_tokens'] if 'input_tokens' in row.keys() else 0,
-                    output_tokens=row['output_tokens'] if 'output_tokens' in row.keys() else 0,
-                    cost=row['cost'] if 'cost' in row.keys() else 0.0
-                )
-                records.append(record)
+                records = [self._row_to_record(row) for row in cursor.fetchall()]
+                return records
 
-            return records
+        except sqlite3.Error as e:
+            print(f"Database error in get_all_transcriptions: {e}")
+            return []
+
+    def search_transcriptions(self, query: str, limit: int = 100) -> List[TranscriptionRecord]:
+        """Search transcriptions by text content"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                conn.row_factory = sqlite3.Row
+                cursor = conn.cursor()
+                search_term = f"%{query}%"
+                cursor.execute('''
+                                   SELECT *
+                                   FROM transcriptions
+                                   WHERE text LIKE ?
+                                   ORDER BY timestamp DESC LIMIT ?
+                                   ''', (search_term, limit))
+
+                records = [self._row_to_record(row) for row in cursor.fetchall()]
+                return records
+        except sqlite3.Error as e:
+            print(f"Database error in search_transcriptions: {e}")
+            return []
 
     def delete_transcription(self, transcription_id: int) -> bool:
         """Delete a transcription by ID"""
