@@ -24,11 +24,19 @@ class OpenAIUsageAPI:
         self.config = config
         self.db = TranscriptionDatabase()
         self.base_url = "https://api.openai.com/v1/organization"
-
+        
+        # Store the regular API key for filtering usage to this application only
+        import os
+        self.regular_api_key = os.getenv('OPENAI_API_KEY') or config.get('transcription', {}).get('api_key', '')
+        
         # Create API key hash for multi-key support
         self.api_key_hash = hashlib.sha256(admin_api_key.encode()).hexdigest()[:16]
 
         logger.info("OpenAI Usage API initialized with admin key")
+        if self.regular_api_key:
+            logger.info(f"Will filter cost tracking to API key: ***{self.regular_api_key[-8:]}")
+        else:
+            logger.warning("No regular API key found - cost tracking will show all organization usage")
 
     def is_cost_tracking_enabled(self) -> bool:
         """Check if cost tracking is enabled and admin key is available"""
@@ -107,31 +115,62 @@ class OpenAIUsageAPI:
             "group_by": ["model"],  # Group by model for better insights
             "limit": days_back,
         }
+        
+        # Filter by API key if available to show only WhisperKey application usage
+        if self.regular_api_key:
+            params["api_key_ids"] = [self.regular_api_key]
+            logger.info(f"Filtering completions usage to API key: ***{self.regular_api_key[-8:]}")
+        else:
+            logger.info("No API key filter - showing all organization usage")
 
         logger.info(f"Fetching completions usage for last {days_back} days")
         return self._get_paginated_data(url, params)
 
-    def fetch_costs_data(self, days_back: int = 30) -> List[Dict]:
-        """Fetch costs data from the past N days"""
+    def fetch_costs_data(self, days_back: int = 90) -> List[Dict]:
+        """Fetch costs data from the past N days using proper admin key sequence"""
         if not self.is_cost_tracking_enabled():
             logger.warning("Cost tracking is disabled")
             return []
 
-        # Calculate start time
+        # Calculate start time - ensure we get current data
         start_time = int(time.time()) - (days_back * 24 * 60 * 60)
-
+        
+        # Use the correct costs API endpoint
         url = f"{self.base_url}/costs"
         params = {
             "start_time": start_time,
-            "bucket_width": "1d",  # Daily buckets
-            "group_by": ["line_item"],  # Group by line item
+            "bucket_width": "1d",  # Currently only '1d' is supported for costs API
             "limit": days_back,
         }
+        
+        # Filter by API key if available to show only WhisperKey application costs
+        if self.regular_api_key:
+            params["api_key_ids"] = [self.regular_api_key]
+            logger.info(f"Filtering costs to API key: ***{self.regular_api_key[-8:]}")
+        else:
+            logger.info("No API key filter - showing all organization costs")
 
-        logger.info(f"Fetching costs data for last {days_back} days")
-        return self._get_paginated_data(url, params)
+        logger.info(f"Fetching costs data for last {days_back} days from {datetime.fromtimestamp(start_time).date()}")
+        logger.info(f"Using admin key: {'***' + self.admin_api_key[-8:] if self.admin_api_key else 'None'}")
+        
+        costs_data = self._get_paginated_data(url, params)
+        
+        # Log the data we got back for debugging
+        if costs_data:
+            logger.info(f"Retrieved {len(costs_data)} cost data buckets from API")
+            # Log first and last buckets for debugging date ranges
+            if len(costs_data) > 0:
+                first_bucket = costs_data[0]
+                last_bucket = costs_data[-1]
+                first_start_dt = datetime.fromtimestamp(first_bucket.get('start_time', 0)).date()
+                last_start_dt = datetime.fromtimestamp(last_bucket.get('start_time', 0)).date()
+                logger.info(f"API data ranges from {first_start_dt} to {last_start_dt}")
+        else:
+            logger.warning("No cost data returned from API. This could be normal if there's no usage.")
+            
+        return costs_data
 
-    def sync_usage_and_costs(self, days_back: int = 30) -> bool:
+    def sync_usage_and_costs(self, days_back: int = 90) -> bool:
         """Sync both usage and cost data"""
         try:
             # Fetch costs data (this is what we mainly care about for billing)
@@ -314,14 +353,18 @@ class OpenAIBillingAPI(OpenAIUsageAPI):
 
     def __init__(self, api_key: str, config: Dict):
         # Use admin API key if available, fallback to regular API key
+        # Admin API key is required for cost tracking as per OpenAI documentation
         import os
         admin_api_key = os.getenv('OPENAI_ADMIN_API_KEY')
-
+        
         if admin_api_key:
+            logger.info("Using OPENAI_ADMIN_API_KEY for cost tracking")
             super().__init__(admin_api_key, config)
-            logger.info("Using admin API key for billing access")
+        elif api_key:
+            logger.warning("Using regular API key - cost tracking may not work properly. Set OPENAI_ADMIN_API_KEY for full functionality.")
+            super().__init__(api_key, config)
         else:
-            logger.warning("No admin API key found - billing features will be limited")
+            logger.error("No API key available - cost tracking will be disabled")
             # Initialize with dummy key to maintain compatibility
             super().__init__("dummy_key", config)
 

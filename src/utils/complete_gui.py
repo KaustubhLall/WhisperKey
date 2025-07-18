@@ -142,10 +142,10 @@ class CompleteWhisperKeyGUI:
         
         # Recording state tracking
         self.is_recording = False
-        self.is_realtime_active = False
         
         # Initialize GUI
         self.create_window()
+        AppStyles.apply(self.window)
         logger.info("=== Complete WhisperKey GUI Initialized ===")
 
     def safe_gui_call(self, func):
@@ -182,49 +182,6 @@ class CompleteWhisperKeyGUI:
             # Fallback to original timestamp if parsing fails
             return timestamp_str
 
-    def setup_jetbrains_theme(self, style):
-        """Configure comprehensive JetBrains-style dark theme"""
-        # Configure colors
-        style.configure("TFrame", background="#2b2b2b")
-        style.configure("TLabel", background="#2b2b2b", foreground="#ffffff")
-        style.configure("TButton", background="#3d3d3d", foreground="#ffffff")
-        style.configure("TEntry", background="#3d3d3d", foreground="#ffffff", 
-                       fieldbackground="#3d3d3d", insertbackground="#ffffff")
-        style.configure("TNotebook", background="#2b2b2b", tabmargins=[2, 2, 2, 2])
-        style.configure("TNotebook.Tab", background="#3d3d3d", foreground="#ffffff", 
-                       padding=[5, 2], borderwidth=0)
-        style.map("TNotebook.Tab", background=[("selected", "#4a90e2")], foreground=[("selected", "#ffffff")])
-        style.configure("TMenubutton", background="#3d3d3d", foreground="#ffffff")
-        style.configure("TCheckbutton", background="#2b2b2b", foreground="#ffffff")
-        style.configure("TRadiobutton", background="#2b2b2b", foreground="#ffffff")
-        style.configure("TCombobox", background="#3d3d3d", foreground="#ffffff", 
-                       fieldbackground="#3d3d3d", selectbackground="#4a90e2", 
-                       selectforeground="#ffffff", arrowcolor="#ffffff")
-        style.map("TCombobox", fieldbackground=[("readonly", "#3d3d3d")], 
-                  selectbackground=[("readonly", "#4a90e2")])
-        style.configure("Vertical.TScrollbar", background="#3d3d3d", troughcolor="#2b2b2b", 
-                       arrowcolor="#ffffff", bordercolor="#3d3d3d", 
-                       activebackground="#4a90e2")
-        style.map("Vertical.TScrollbar", background=[("active", "#4a90e2")], 
-                  troughcolor=[("active", "#2b2b2b")], arrowcolor=[("active", "#ffffff")])
-        style.configure("Horizontal.TScrollbar", background="#3d3d3d", troughcolor="#2b2b2b", 
-                       arrowcolor="#ffffff", bordercolor="#3d3d3d", 
-                       activebackground="#4a90e2")
-        style.map("Horizontal.TScrollbar", background=[("active", "#4a90e2")], 
-                  troughcolor=[("active", "#2b2b2b")], arrowcolor=[("active", "#ffffff")])
-        
-        # Configure LabelFrame styling
-        style.configure("TLabelframe", background="#2b2b2b", borderwidth=1, 
-                       relief="solid", bordercolor="#3d3d3d")
-        style.configure("TLabelframe.Label", background="#2b2b2b", foreground="#ffffff", 
-                       font=("Segoe UI", 10, "bold"))
-        
-        # Configure special header and status label styling
-        style.configure("Header.TLabel", background="#2b2b2b", foreground="#ffffff", 
-                       font=("Segoe UI", 18, "bold"))
-        style.configure("Status.TLabel", background="#2b2b2b", foreground="#b0b0b0", 
-                       font=("Segoe UI", 10))
-
     def create_window(self):
         """Create the main GUI window using proven working approach"""
         logger.info("Creating main window...")
@@ -254,9 +211,6 @@ class CompleteWhisperKeyGUI:
 
             self.window.configure(bg=self.colors['bg_primary'])
             
-            # Configure comprehensive JetBrains-style dark theme
-            self.setup_jetbrains_theme(style)
-            
             # Configure button disabled styling
             style.map('TButton', 
                       foreground=[('disabled', '#666666')],
@@ -268,34 +222,6 @@ class CompleteWhisperKeyGUI:
                            background='#dc3545')  # Red color
             style.map('Recording.TButton',
                       background=[('active', '#c82333')])  # Darker red on hover
-            
-            # Configure modern treeview heading styling
-            style.configure("Treeview.Heading",
-                           background='#3d3d3d',
-                           foreground='#ffffff',
-                           font=("Segoe UI", 10, "bold"))
-            style.map("Treeview.Heading",
-                      background=[('active', '#4a90e2')])
-            
-            # Configure treeview font for better readability
-            style.configure("Treeview", font=("Consolas", 9),
-                           background="#2b2b2b", foreground="#ffffff", 
-                           fieldbackground="#2b2b2b", rowheight=25)
-            style.map("Treeview",
-                      background=[('selected', '#4a90e2')],
-                      foreground=[('selected', '#ffffff')])
-            
-            # Configure LabelFrame styling
-            style.configure("TLabelframe", background="#2b2b2b", borderwidth=1, 
-                           relief="solid", bordercolor="#3d3d3d")
-            style.configure("TLabelframe.Label", background="#2b2b2b", foreground="#ffffff", 
-                           font=("Segoe UI", 10, "bold"))
-            
-            # Configure special header and status label styling
-            style.configure("Header.TLabel", background="#2b2b2b", foreground="#ffffff", 
-                           font=("Segoe UI", 18, "bold"))
-            style.configure("Status.TLabel", background="#2b2b2b", foreground="#b0b0b0", 
-                           font=("Segoe UI", 10))
 
             # Create all widgets
             self.create_widgets()
@@ -387,7 +313,7 @@ class CompleteWhisperKeyGUI:
 
         # Configure grid
         tab_frame.columnconfigure(0, weight=1)
-        tab_frame.rowconfigure(2, weight=1) # Make space for transcriptions list
+        tab_frame.rowconfigure(2, weight=1)
 
         # Quick actions section
         actions_frame = ttk.LabelFrame(tab_frame, text="Quick Actions", padding="15")
@@ -396,7 +322,7 @@ class CompleteWhisperKeyGUI:
 
         # Regular recording button
         self.record_button = ttk.Button(actions_frame, text="Start Recording",
-                                command=self.manual_record, width=20)
+                                command=self.manual_record, width=20, style="TButton")
         self.record_button.grid(row=0, column=0, padx=(0, 10), pady=5)
 
         # Realtime transcription button
@@ -422,54 +348,58 @@ class CompleteWhisperKeyGUI:
         ttk.Label(hotkeys_frame, text=f"Realtime: {realtime_hotkey}",
                   font=("Segoe UI", 10)).grid(row=1, column=0, sticky=tk.W, pady=2)
 
-        # Recent transcriptions preview
+        # Recent transcriptions preview with split pane layout
         recent_frame = ttk.LabelFrame(tab_frame, text="Recent Transcriptions", padding="15")
         recent_frame.grid(row=2, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         recent_frame.columnconfigure(0, weight=1)
         recent_frame.rowconfigure(0, weight=1)
 
-        # Create split pane for transcriptions
-        split_frame = ttk.Frame(recent_frame)
-        split_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
-        split_frame.columnconfigure(0, weight=1, minsize=200)  # Left side: 35%
-        split_frame.columnconfigure(1, weight=2, minsize=300)  # Right side: 65%
-        split_frame.rowconfigure(0, weight=1)
+        # Create PanedWindow for split layout
+        paned_window = ttk.PanedWindow(recent_frame, orient=tk.HORIZONTAL)
+        paned_window.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
 
-        # Left side - transcription list
-        left_frame = ttk.Frame(split_frame)
-        left_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=(0, 5))
+        # Left pane - Transcription list
+        left_frame = ttk.Frame(paned_window)
+        paned_window.add(left_frame, weight=1)
+        
         left_frame.columnconfigure(0, weight=1)
         left_frame.rowconfigure(0, weight=1)
-
-        self.overview_listbox = tk.Listbox(left_frame, height=8, font=("Consolas", 9), 
-                                          selectmode='browse', bg='#2b2b2b', fg='#ffffff',
-                                          selectbackground='#4a90e2', selectforeground='#ffffff')
+        
+        # Create overview listbox with modern styling
+        self.overview_listbox = tk.Listbox(left_frame, height=8, font=("Segoe UI", 10), selectmode='browse',
+                                         bg='#f8f9fa', fg='#343a40', selectbackground='#007bff', 
+                                         selectforeground='white', borderwidth=0, highlightthickness=0)
         scrollbar_overview = ttk.Scrollbar(left_frame, orient="vertical", command=self.overview_listbox.yview)
         self.overview_listbox.configure(yscrollcommand=scrollbar_overview.set)
 
         self.overview_listbox.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         scrollbar_overview.grid(row=0, column=1, sticky=(tk.N, tk.S))
 
-        # Right side - full transcript display
-        right_frame = ttk.LabelFrame(split_frame, text="Full Transcript", padding="10")
-        right_frame.grid(row=0, column=1, sticky=(tk.W, tk.E, tk.N, tk.S), padx=(5, 0))
+        # Right pane - Full transcript view
+        right_frame = ttk.Frame(paned_window)
+        paned_window.add(right_frame, weight=2)
+        
         right_frame.columnconfigure(0, weight=1)
         right_frame.rowconfigure(0, weight=1)
-
-        self.transcript_text = tk.Text(right_frame, height=8, font=("Segoe UI", 10), 
-                                      wrap=tk.WORD, bg='#2b2b2b', fg='#ffffff',
-                                      insertbackground='#ffffff', selectbackground='#4a90e2')
-        self.transcript_text.configure(state='disabled')  # Read-only
         
-        transcript_scrollbar = ttk.Scrollbar(right_frame, orient="vertical", command=self.transcript_text.yview)
-        self.transcript_text.configure(yscrollcommand=transcript_scrollbar.set)
+        # Create text widget for full transcript with modern styling
+        self.transcript_text = tk.Text(right_frame, height=8, font=("Segoe UI", 10), wrap=tk.WORD,
+                                     bg='#ffffff', fg='#495057', borderwidth=0, highlightthickness=0,
+                                     padx=10, pady=10, state=tk.DISABLED)
+        scrollbar_transcript = ttk.Scrollbar(right_frame, orient="vertical", command=self.transcript_text.yview)
+        self.transcript_text.configure(yscrollcommand=scrollbar_transcript.set)
         
         self.transcript_text.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
-        transcript_scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
+        scrollbar_transcript.grid(row=0, column=1, sticky=(tk.N, tk.S))
+        
+        # Add placeholder text
+        self.transcript_text.configure(state=tk.NORMAL)
+        self.transcript_text.insert(tk.END, "Select a transcription from the list to view the full text here.")
+        self.transcript_text.configure(state=tk.DISABLED)
 
-        # Bind selection event to show full transcript
-        self.overview_listbox.bind("<<ListboxSelect>>", self.on_overview_select)
-        # Bind double-click event for copying
+        # Bind single-click event to show full transcript
+        self.overview_listbox.bind("<<ListboxSelect>>", self.on_transcription_select)
+        # Keep double-click for copying
         self.overview_listbox.bind("<Double-Button-1>", self.copy_selected_transcription)
 
     def create_settings_tab(self):
@@ -538,6 +468,21 @@ class CompleteWhisperKeyGUI:
         save_button = ttk.Button(button_frame, text="Save Settings", style="TButton", command=self.save_settings)
         save_button.pack()
 
+    def on_audio_device_select(self, event=None):
+        """Handle selection of an audio device."""
+        try:
+            selection = self.audio_device_menu.get()
+            # Extract device ID from string like "Microphone (ID: 2)"
+            device_id_str = selection.split('ID: ')[-1].replace(')', '')
+            if device_id_str.isdigit():
+                device_id = int(device_id_str)
+                self.app.config['audio_device_index'] = device_id
+                self.update_status(f"Audio device set to ID: {device_id}")
+                logger.info(f"Audio device selection changed to index {device_id}")
+        except Exception as e:
+            logger.error(f"Error handling audio device selection: {e}", exc_info=True)
+            self.update_status("Error selecting audio device.")
+
     def create_transcriptions_tab(self):
         """Create transcriptions history tab with enhanced details."""
         tab_frame = ttk.Frame(self.notebook, padding="10")
@@ -600,6 +545,11 @@ class CompleteWhisperKeyGUI:
         self.transcriptions_tree.column('engine', width=80, anchor='w')
         self.transcriptions_tree.column('model', width=120, anchor='w')
         
+        # Configure treeview font for better readability
+        style = ttk.Style()
+        style.configure("Transcriptions.Treeview", font=("Consolas", 9))
+        self.transcriptions_tree.configure(style="Transcriptions.Treeview")
+
         # Add scrollbar
         tree_scrollbar = ttk.Scrollbar(list_frame, orient="vertical", command=self.transcriptions_tree.yview)
         self.transcriptions_tree.configure(yscrollcommand=tree_scrollbar.set)
@@ -650,9 +600,17 @@ class CompleteWhisperKeyGUI:
         ttk.Label(title_frame, text="Cost Tracking & Usage Analytics",
                   font=("Segoe UI", 14, "bold")).grid(row=0, column=0, sticky=tk.W)
 
-        refresh_btn = ttk.Button(title_frame, text="Refresh Data",
+        # Button frame for refresh and clear buttons
+        button_frame = ttk.Frame(title_frame)
+        button_frame.grid(row=0, column=1, sticky=tk.E)
+        
+        refresh_btn = ttk.Button(button_frame, text="Refresh Data",
                                  command=self.refresh_costs)
-        refresh_btn.grid(row=0, column=1, sticky=tk.E)
+        refresh_btn.grid(row=0, column=0, padx=(0, 5))
+        
+        clear_btn = ttk.Button(button_frame, text="Clear Database",
+                               command=self.clear_cost_database)
+        clear_btn.grid(row=0, column=1)
 
         # Summary cards
         summary_frame = ttk.Frame(tab_frame, padding="10")
@@ -753,6 +711,11 @@ class CompleteWhisperKeyGUI:
         self.daily_tree.column('Details', width=300)
         self.daily_tree.column('Last Updated', width=150)
         
+        # Configure treeview font for better readability
+        style = ttk.Style()
+        style.configure("Daily.Treeview", font=("Consolas", 9))
+        self.daily_tree.configure(style="Daily.Treeview")
+
         # Add scrollbar
         daily_scrollbar = ttk.Scrollbar(tab_frame, orient="vertical", command=self.daily_tree.yview)
         self.daily_tree.configure(yscrollcommand=daily_scrollbar.set)
@@ -792,6 +755,11 @@ class CompleteWhisperKeyGUI:
         self.weekly_tree.column('Avg Daily', width=120)
         self.weekly_tree.column('Days Active', width=100)
         
+        # Configure treeview font for better readability
+        style = ttk.Style()
+        style.configure("Weekly.Treeview", font=("Consolas", 9))
+        self.weekly_tree.configure(style="Weekly.Treeview")
+
         # Add scrollbar
         weekly_scrollbar = ttk.Scrollbar(tab_frame, orient="vertical", command=self.weekly_tree.yview)
         self.weekly_tree.configure(yscrollcommand=weekly_scrollbar.set)
@@ -833,6 +801,11 @@ class CompleteWhisperKeyGUI:
         self.monthly_tree.column('Avg Daily', width=120)
         self.monthly_tree.column('Trend', width=80)
         
+        # Configure treeview font for better readability
+        style = ttk.Style()
+        style.configure("Monthly.Treeview", font=("Consolas", 9))
+        self.monthly_tree.configure(style="Monthly.Treeview")
+
         # Add scrollbar
         monthly_scrollbar = ttk.Scrollbar(tab_frame, orient="vertical", command=self.monthly_tree.yview)
         self.monthly_tree.configure(yscrollcommand=monthly_scrollbar.set)
@@ -864,16 +837,14 @@ class CompleteWhisperKeyGUI:
                                    "Realtime transcription is not available. Check your configuration.")
             return
 
-        if not self.is_realtime_active:
+        if not self.app.is_realtime_active:
             # Start realtime
             self.app.start_realtime_transcription()
-            self.realtime_btn.configure(text="Stop Realtime", style="Recording.TButton")
-            self.is_realtime_active = True
+            self.realtime_btn.configure(text="Stop Realtime")
         else:
             # Stop realtime
             self.app.stop_realtime_transcription()
-            self.realtime_btn.configure(text="Start Realtime", style="TButton")
-            self.is_realtime_active = False
+            self.realtime_btn.configure(text="Start Realtime")
 
     def update_status(self, status: str):
         """Update the status label - thread-safe version"""
@@ -929,6 +900,35 @@ class CompleteWhisperKeyGUI:
 
         # Update status
         self.update_status("Refreshing cost data...")
+
+    def clear_cost_database(self):
+        """Clear all cost tracking data from the database"""
+        try:
+            # Confirm with the user before deleting
+            if not messagebox.askyesno(
+                "Confirm Clear",
+                "Are you sure you want to delete all cost history data?\n\n" +
+                "This action cannot be undone."
+            ):
+                return
+
+            deleted_count = self.db.clear_cost_history()
+
+            # Update the UI
+            self.update_cost_tracking_data()
+            
+            self.update_status(f"[OK] Database cleared! Deleted {deleted_count} cost records.")
+            
+            # Show success message
+            messagebox.showinfo(
+                "Database Cleared",
+                f"Successfully cleared {deleted_count} cost records from the database.\n\n" +
+                "You can now refresh the data to get fresh cost information."
+            )
+        except Exception as e:
+            logger.error(f"Error clearing cost database: {e}", exc_info=True)
+            self.update_status(f"[ERROR] Failed to clear database: {e}")
+            messagebox.showerror("Error", f"Failed to clear database: {e}")
 
     def show_cost_breakdown(self, event=None):
         """Show detailed cost breakdown dialog"""
@@ -998,7 +998,7 @@ class CompleteWhisperKeyGUI:
                       font=("Segoe UI", 12, "bold")).grid(row=2, column=0, pady=(10, 0))
 
         except Exception as e:
-            logger.error(f"Error showing cost breakdown: {e}", exc_info=True)
+            logger.error(f"Error showing cost breakdown: {e}")
             messagebox.showerror("Error", f"Failed to show cost breakdown: {e}")
 
     def update_audio_devices(self):
@@ -1219,6 +1219,60 @@ class CompleteWhisperKeyGUI:
         except Exception as e:
             logger.error(f"Error updating recent transcriptions: {e}", exc_info=True)
 
+    def on_transcription_select(self, event=None):
+        """Handle selection of a transcription from the overview listbox"""
+        try:
+            # Get selected item
+            selected_idx = self.overview_listbox.curselection()
+            if not selected_idx:
+                return
+
+            selected_text = self.overview_listbox.get(selected_idx)
+
+            # Extract date from selected text (format: "YYYY-MM-DD: text...")
+            if ": " in selected_text:
+                date_str = selected_text.split(": ")[0]
+                
+                # Get all recent transcriptions and find the one with matching date
+                recent_transcriptions = self.db.get_recent_transcriptions(limit=50)
+                
+                for record in recent_transcriptions:
+                    record_date = self.format_timestamp_natural(record.timestamp)
+                    if record_date == date_str:
+                        # Display full transcript in the right pane
+                        self.transcript_text.configure(state=tk.NORMAL)
+                        self.transcript_text.delete(1.0, tk.END)
+                        
+                        # Add transcript header with metadata
+                        header = f"Transcription from {record_date}\n"
+                        header += f"Duration: {record.duration_seconds:.1f}s | "
+                        header += f"Model: {record.model} | "
+                        header += f"Cost: ${record.cost:.4f}\n"
+                        header += "-" * 50 + "\n\n"
+                        
+                        self.transcript_text.insert(tk.END, header)
+                        self.transcript_text.insert(tk.END, record.text)
+                        
+                        # Style the header
+                        self.transcript_text.tag_add("header", "1.0", "4.0")
+                        self.transcript_text.tag_config("header", foreground="#6c757d", font=("Segoe UI", 9))
+                        
+                        self.transcript_text.configure(state=tk.DISABLED)
+                        return
+                        
+            # Fallback: show the selected text as is
+            self.transcript_text.configure(state=tk.NORMAL)
+            self.transcript_text.delete(1.0, tk.END)
+            self.transcript_text.insert(tk.END, selected_text)
+            self.transcript_text.configure(state=tk.DISABLED)
+            
+        except Exception as e:
+            logger.error(f"Error displaying selected transcription: {e}")
+            self.transcript_text.configure(state=tk.NORMAL)
+            self.transcript_text.delete(1.0, tk.END)
+            self.transcript_text.insert(tk.END, "Error loading transcription.")
+            self.transcript_text.configure(state=tk.DISABLED)
+
     def copy_selected_transcription(self, event=None):
         """Copy selected transcription from overview listbox"""
         try:
@@ -1233,22 +1287,11 @@ class CompleteWhisperKeyGUI:
             # Extract date from selected text (format: "YYYY-MM-DD: text...")
             if ": " in selected_text:
                 date_str = selected_text.split(": ")[0]
-                preview_text = ": ".join(selected_text.split(": ")[1:])
-
-                # Find matching record in database by date and preview
-                records = self.db.get_recent_transcriptions(100)
-                for record in records:
-                    record_date = self.format_timestamp_natural(record.timestamp)
-                    record_preview = record.text[:50] + "..." if len(record.text) > 50 else record.text
-                    
-                    if record_date == date_str and record_preview == preview_text:
-                        # Copy full text to clipboard
-                        pyperclip.copy(record.text)
-                        self.update_status("[OK] Transcription copied to clipboard!")
-                        return
-
-                # Fallback: find by date only if preview doesn't match exactly
-                for record in records:
+                
+                # Get all recent transcriptions and find the one with matching date
+                recent_transcriptions = self.db.get_recent_transcriptions(limit=50)
+                
+                for record in recent_transcriptions:
                     record_date = self.format_timestamp_natural(record.timestamp)
                     if record_date == date_str:
                         pyperclip.copy(record.text)
@@ -1960,84 +2003,3 @@ class CompleteWhisperKeyGUI:
 
         except Exception as e:
             logger.error(f"Error updating monthly costs tree: {e}")
-
-    def on_overview_select(self, event=None):
-        """Show full transcript when a list item is selected"""
-        try:
-            selected_idx = self.overview_listbox.curselection()
-            if not selected_idx:
-                self.transcript_text.configure(state='normal')
-                self.transcript_text.delete('1.0', tk.END)
-                self.transcript_text.configure(state='disabled')
-                return
-
-            selected_text = self.overview_listbox.get(selected_idx)
-
-            # Extract date from selected text (format: "YYYY-MM-DD: text...")
-            if ": " in selected_text:
-                date_str = selected_text.split(": ")[0]
-                preview_text = ": ".join(selected_text.split(": ")[1:])
-
-                # Find matching record in database by date and preview
-                records = self.db.get_recent_transcriptions(100)
-                for record in records:
-                    record_date = self.format_timestamp_natural(record.timestamp)
-                    record_preview = record.text[:50] + "..." if len(record.text) > 50 else record.text
-                    
-                    if record_date == date_str and record_preview == preview_text:
-                        # Show full text
-                        self.transcript_text.configure(state='normal')
-                        self.transcript_text.delete('1.0', tk.END)
-                        self.transcript_text.insert('1.0', record.text)
-                        self.transcript_text.configure(state='disabled')
-                        return
-
-                # Fallback: find by date only if preview doesn't match exactly
-                for record in records:
-                    record_date = self.format_timestamp_natural(record.timestamp)
-                    if record_date == date_str:
-                        # Show full text
-                        self.transcript_text.configure(state='normal')
-                        self.transcript_text.delete('1.0', tk.END)
-                        self.transcript_text.insert('1.0', record.text)
-                        self.transcript_text.configure(state='disabled')
-                        return
-            
-            # Final fallback: show nothing
-            self.transcript_text.configure(state='normal')
-            self.transcript_text.delete('1.0', tk.END)
-            self.transcript_text.configure(state='disabled')
-
-        except Exception as e:
-            logger.error(f"Error showing full transcript: {e}")
-
-    def on_audio_device_select(self, event=None):
-        """Handle selection of an audio device."""
-        try:
-            selection = self.audio_device_menu.get()
-            # Extract device ID from string like "Microphone (ID: 2)"
-            device_id_str = selection.split('ID: ')[-1].replace(')', '')
-            if device_id_str.isdigit():
-                device_id = int(device_id_str)
-                self.app.config['audio_device_index'] = device_id
-                self.update_status(f"Audio device set to ID: {device_id}")
-                logger.info(f"Audio device selection changed to index {device_id}")
-        except Exception as e:
-            logger.error(f"Error handling audio device selection: {e}", exc_info=True)
-            self.update_status("Error selecting audio device.")
-
-    def on_recording_finished(self):
-        """Called when recording actually finishes to reset button state"""
-        def _reset_button():
-            self.record_button.configure(text="Start Recording", style="TButton")
-            self.is_recording = False
-        
-        self.safe_gui_call(_reset_button)
-
-    def on_realtime_finished(self):
-        """Called when realtime actually finishes to reset button state"""
-        def _reset_button():
-            self.realtime_btn.configure(text="Start Realtime", style="TButton")
-            self.is_realtime_active = False
-        
-        self.safe_gui_call(_reset_button)

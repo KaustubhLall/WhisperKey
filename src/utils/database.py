@@ -147,6 +147,20 @@ class TranscriptionDatabase:
         except sqlite3.Error as e:
             print(f"Database error while adding column: {e}")
 
+    def clear_cost_history(self) -> int:
+        """Clear all records from the cost_history table and return the count of deleted rows."""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("DELETE FROM cost_history")
+                deleted_count = cursor.rowcount
+                conn.commit()
+                print(f"Cleared {deleted_count} records from cost_history.")
+                return deleted_count
+        except sqlite3.Error as e:
+            print(f"Database error while clearing cost history: {e}")
+            return 0
+
     def _row_to_record(self, row) -> TranscriptionRecord:
         """Convert a database row to a TranscriptionRecord object with proper type casting."""
         try:

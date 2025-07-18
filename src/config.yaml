@@ -9,7 +9,7 @@ cost_tracking:
 hotkey: ctrl_l+tab
 realtime:
   model: gpt-4o-mini-transcribe
-realtime_hotkey: ctrl_l+shift
+realtime_hotkey: ''
 sample_rate: 16000
 transcription:
   engine: openai

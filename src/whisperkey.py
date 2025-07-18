@@ -513,41 +513,34 @@ class WhisperKeyApp:
             keyboard.unhook_all()
 
             # Register regular recording hotkey
-            keyboard.add_hotkey(
-                self.parse_hotkey(self.config['hotkey']),
-                self.toggle_recording,
-                suppress=True
-            )
-            logger.info(f"Recording hotkey registered: {self.config['hotkey']}")
+            record_hotkey_str = self.config.get('hotkey')
+            parsed_hotkey = self.parse_hotkey(record_hotkey_str)
+            if parsed_hotkey:
+                keyboard.add_hotkey(
+                    parsed_hotkey,
+                    self.toggle_recording,
+                    suppress=True
+                )
+                logger.info(f"Recording hotkey registered: {record_hotkey_str}")
+            else:
+                logger.warning(f"Invalid or empty recording hotkey in config: '{record_hotkey_str}'")
 
             # Register realtime transcription hotkey if enabled
             if self.realtime_transcriber:
-                realtime_hotkey = self.config.get('realtime_hotkey', 'ctrl+alt+shift+enter')
-                keyboard.add_hotkey(
-                    self.parse_hotkey(realtime_hotkey),
-                    self.toggle_realtime_transcription,
-                    suppress=True
-                )
-                logger.info(f"Realtime hotkey registered: {realtime_hotkey}")
+                realtime_hotkey_str = self.config.get('realtime_hotkey')
+                parsed_realtime_hotkey = self.parse_hotkey(realtime_hotkey_str)
+                if parsed_realtime_hotkey:
+                    keyboard.add_hotkey(
+                        parsed_realtime_hotkey,
+                        self.toggle_realtime_transcription,
+                        suppress=True
+                    )
+                    logger.info(f"Realtime hotkey registered: {realtime_hotkey_str}")
+                else:
+                    logger.warning(f"Invalid or empty realtime hotkey in config: '{realtime_hotkey_str}'")
 
         except Exception as e:
-            logger.exception(f"Error registering hotkeys: {e}")
-            # Try alternative registration method
-            try:
-                logger.info("Trying alternative hotkey registration...")
-                keyboard.on_hotkey(
-                    self.parse_hotkey(self.config['hotkey']),
-                    lambda: self.on_hotkey("record")
-                )
-                if self.realtime_transcriber:
-                    realtime_hotkey = self.config.get('realtime_hotkey', 'ctrl+alt+shift+enter')
-                    keyboard.on_hotkey(
-                        self.parse_hotkey(realtime_hotkey),
-                        lambda: self.on_hotkey("realtime")
-                    )
-                logger.info("Hotkeys registered with alternative method")
-            except Exception as e2:
-                logger.error(f"Both hotkey registration methods failed: {e2}")
+            logger.error(f"Failed to register hotkeys. Please check your hotkey configuration and permissions. Error: {e}", exc_info=True)
 
     def parse_hotkey(self, hotkey_str):
         """Parse a hotkey string into a format that can be used by the keyboard library.
@@ -556,58 +549,20 @@ class WhisperKeyApp:
             hotkey_str: String representation of hotkey (e.g., 'ctrl+alt+enter')
             
         Returns:
-            Parsed hotkey string ready for use with keyboard library
+            Parsed hotkey string ready for use with keyboard library, or None if invalid
         """
+        if not hotkey_str or not isinstance(hotkey_str, str):
+            logger.warning(f"Empty or invalid hotkey string provided: {hotkey_str}")
+            return None
+        
         try:
-            # Handle common key name mappings
-            key_mappings = {
-                'ctrl': 'ctrl',
-                'control': 'ctrl',
-                'alt': 'alt',
-                'shift': 'shift',
-                'win': 'win',
-                'cmd': 'win',
-                'command': 'win',
-                'enter': 'enter',
-                'return': 'enter',
-                'space': 'space',
-                'tab': 'tab',
-                'esc': 'esc',
-                'escape': 'esc',
-                'backspace': 'backspace',
-                'delete': 'delete',
-                'del': 'delete',
-                'up': 'up',
-                'down': 'down',
-                'left': 'left',
-                'right': 'right',
-            }
-            
-            # Split the hotkey string by '+' and clean up each part
-            parts = [p.strip().lower() for p in hotkey_str.split('+')]
-            
-            # Map each part to its keyboard library equivalent
-            mapped_parts = []
-            for part in parts:
-                # Handle special case for ctrl_l, ctrl_r, etc.
-                if part in ['ctrl_l', 'ctrl_r']:
-                    mapped_parts.append('ctrl')
-                elif part in ['alt_l', 'alt_r']:
-                    mapped_parts.append('alt')
-                elif part in ['shift_l', 'shift_r']:
-                    mapped_parts.append('shift')
-                else:
-                    # Use mapping if available, otherwise use as is
-                    mapped_parts.append(key_mappings.get(part, part))
-            
-            # Join back with '+' for keyboard library format
-            result = '+'.join(mapped_parts)
-            logger.debug(f"Parsed hotkey '{hotkey_str}' to '{result}'")
-            return result
-            
+            # Simple validation: ensure it's not just whitespace
+            if hotkey_str.strip() == "":
+                return None
+            return hotkey_str.lower().strip()
         except Exception as e:
             logger.error(f"Error parsing hotkey '{hotkey_str}': {e}")
-            return hotkey_str  # Return original as fallback
+            return None
 
     @staticmethod
     def create_tray_icon_image(color):
