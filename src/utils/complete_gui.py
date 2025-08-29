@@ -189,39 +189,12 @@ class CompleteWhisperKeyGUI:
         try:
             # Use direct Tk() approach that worked in progressive test
             self.window = tk.Tk()
-            self.window.title("WhisperKey")
-            self.window.geometry("800x650")
-            self.window.minsize(700, 500)
+            self.window.title("WhisperKey - IntelliJ IDEA Darcula Theme")
+            self.window.geometry("900x700")
+            self.window.minsize(750, 550)
 
-            # Configure modern style
-            style = ttk.Style()
-            style.theme_use('clam')
-
-            # Configure colors
-            self.colors = {
-                'bg_primary': '#2b2b2b',
-                'bg_secondary': '#3d3d3d',
-                'bg_accent': '#4a90e2',
-                'text_primary': '#ffffff',
-                'text_secondary': '#b0b0b0',
-                'success': '#28a745',
-                'warning': '#ffc107',
-                'danger': '#dc3545'
-            }
-
-            self.window.configure(bg=self.colors['bg_primary'])
-            
-            # Configure button disabled styling
-            style.map('TButton', 
-                      foreground=[('disabled', '#666666')],
-                      background=[('disabled', '#f0f0f0')])
-            
-            # Configure recording button styling
-            style.configure("Recording.TButton",
-                           foreground='white',
-                           background='#dc3545')  # Red color
-            style.map('Recording.TButton',
-                      background=[('active', '#c82333')])  # Darker red on hover
+            # Apply Darcula theme styles
+            AppStyles.apply(self.window)
 
             # Create all widgets
             self.create_widgets()
@@ -236,7 +209,7 @@ class CompleteWhisperKeyGUI:
             # Set up window to handle mainloop properly
             self.window.protocol("WM_DELETE_WINDOW", self.on_window_close)
 
-            logger.info("Main window created successfully")
+            logger.info("Main window created successfully with Darcula theme")
 
         except Exception as e:
             logger.error(f"Error creating window: {e}", exc_info=True)
@@ -308,55 +281,88 @@ class CompleteWhisperKeyGUI:
 
     def create_overview_tab(self):
         """Create overview tab with quick actions and status"""
-        tab_frame = ttk.Frame(self.notebook)
-        self.notebook.add(tab_frame, text="Overview")
+        # Create main tab frame with Darcula background
+        tab_frame = ttk.Frame(self.notebook, padding="20")
+        self.notebook.add(tab_frame, text='Overview')
+        tab_frame.grid_columnconfigure(0, weight=1)
+        tab_frame.grid_rowconfigure(3, weight=1) # Make recent transcriptions expandable
 
-        # Configure grid
-        tab_frame.columnconfigure(0, weight=1)
-        tab_frame.rowconfigure(2, weight=1)
+        # Quick Actions Panel - Remove box borders, use subtle dividing line
+        quick_actions_label = ttk.Label(tab_frame, text="Quick Actions", style="Header.TLabel")
+        quick_actions_label.grid(row=0, column=0, sticky=tk.W, pady=(0, 10))
 
-        # Quick actions section
-        actions_frame = ttk.LabelFrame(tab_frame, text="Quick Actions", padding="15")
-        actions_frame.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
-        actions_frame.columnconfigure(1, weight=1)
+        # Create separator line under Quick Actions
+        separator = AppStyles.create_separator_line(tab_frame)
+        separator.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 15))
 
-        # Regular recording button
-        self.record_button = ttk.Button(actions_frame, text="Start Recording",
-                                command=self.manual_record, width=20, style="TButton")
-        self.record_button.grid(row=0, column=0, padx=(0, 10), pady=5)
+        # Main action buttons with Darcula styling
+        actions_frame = ttk.Frame(tab_frame)
+        actions_frame.grid(row=2, column=0, sticky=(tk.W, tk.E), pady=(0, 20))
+        actions_frame.grid_columnconfigure(0, weight=1)
+        actions_frame.grid_columnconfigure(1, weight=1)  
+        actions_frame.grid_columnconfigure(2, weight=1)
+
+        # Recording button with dynamic state styling
+        self.record_btn = ttk.Button(actions_frame, text="Start Recording", 
+                                   command=self.manual_record, width=20)
+        self.record_btn.grid(row=0, column=0, padx=(0, 10), pady=5, sticky=tk.W)
 
         # Realtime transcription button
         self.realtime_btn = ttk.Button(actions_frame, text="Start Realtime",
-                                       command=self.toggle_realtime, width=20)
+                                     command=self.toggle_realtime, width=20)
         self.realtime_btn.grid(row=0, column=1, padx=(0, 10), pady=5)
 
         # Settings button
         settings_btn = ttk.Button(actions_frame, text="Settings",
-                                  command=lambda: self.notebook.select(1), width=20)
-        settings_btn.grid(row=0, column=2, pady=5)
+                                command=lambda: self.notebook.select(1), width=20)
+        settings_btn.grid(row=0, column=2, pady=5, sticky=tk.E)
 
-        # Current hotkeys display
-        hotkeys_frame = ttk.LabelFrame(tab_frame, text="Hotkeys", padding="15")
-        hotkeys_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
+        # Hotkeys Section - Rounded rectangle style with dark grey background
+        hotkeys_container = AppStyles.create_card_frame(tab_frame, padx=15, pady=15)
+        hotkeys_container.grid(row=3, column=0, sticky=(tk.W, tk.E), pady=(0, 20))
+
+        hotkeys_label = ttk.Label(hotkeys_container, text="Hotkeys", style="Header.TLabel")
+        hotkeys_label.grid(row=0, column=0, sticky=tk.W, pady=(0, 10))
 
         # Get current hotkeys from config
         record_hotkey = self.app.config.get('hotkey', 'ctrl+alt+enter')
         realtime_hotkey = self.app.config.get('realtime_hotkey', 'ctrl+alt+shift+enter')
 
-        ttk.Label(hotkeys_frame, text=f"Recording: {record_hotkey}",
-                  font=("Segoe UI", 10)).grid(row=0, column=0, sticky=tk.W, pady=2)
-        ttk.Label(hotkeys_frame, text=f"Realtime: {realtime_hotkey}",
-                  font=("Segoe UI", 10)).grid(row=1, column=0, sticky=tk.W, pady=2)
+        # Create hotkey display frames with rounded rectangle styling
+        record_hotkey_frame = tk.Frame(hotkeys_container, 
+                                     bg=AppStyles.INPUT_BACKGROUND,
+                                     relief="flat", bd=0)
+        record_hotkey_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 8))
 
-        # Recent transcriptions preview with split pane layout
-        recent_frame = ttk.LabelFrame(tab_frame, text="Recent Transcriptions", padding="15")
-        recent_frame.grid(row=2, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
-        recent_frame.columnconfigure(0, weight=1)
-        recent_frame.rowconfigure(0, weight=1)
+        record_label = tk.Label(record_hotkey_frame, text=f"Recording: {record_hotkey}",
+                              font=(AppStyles.FONT_FAMILY, AppStyles.FONT_SIZE_DEFAULT),
+                              bg=AppStyles.INPUT_BACKGROUND, fg=AppStyles.WHITE_TEXT,
+                              padx=12, pady=6)
+        record_label.pack(side=tk.LEFT)
+
+        realtime_hotkey_frame = tk.Frame(hotkeys_container,
+                                       bg=AppStyles.INPUT_BACKGROUND,
+                                       relief="flat", bd=0)
+        realtime_hotkey_frame.grid(row=2, column=0, sticky=(tk.W, tk.E), pady=(0, 8))
+
+        realtime_label = tk.Label(realtime_hotkey_frame, text=f"Realtime: {realtime_hotkey}",
+                                font=(AppStyles.FONT_FAMILY, AppStyles.FONT_SIZE_DEFAULT),
+                                bg=AppStyles.INPUT_BACKGROUND, fg=AppStyles.WHITE_TEXT,
+                                padx=12, pady=6)
+        realtime_label.pack(side=tk.LEFT)
+
+        # Recent Transcriptions Panel with Darcula styling
+        recent_container = AppStyles.create_card_frame(tab_frame, padx=15, pady=15)
+        recent_container.grid(row=4, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        recent_container.grid_columnconfigure(0, weight=1)
+        recent_container.grid_rowconfigure(1, weight=1)
+
+        recent_label = ttk.Label(recent_container, text="Recent Transcriptions", style="Header.TLabel")
+        recent_label.grid(row=0, column=0, sticky=tk.W, pady=(0, 10))
 
         # Create PanedWindow for split layout
-        paned_window = ttk.PanedWindow(recent_frame, orient=tk.HORIZONTAL)
-        paned_window.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        paned_window = ttk.PanedWindow(recent_container, orient=tk.HORIZONTAL)
+        paned_window.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
 
         # Left pane - Transcription list
         left_frame = ttk.Frame(paned_window)
@@ -365,15 +371,21 @@ class CompleteWhisperKeyGUI:
         left_frame.columnconfigure(0, weight=1)
         left_frame.rowconfigure(0, weight=1)
         
-        # Create overview listbox with modern styling
-        self.overview_listbox = tk.Listbox(left_frame, height=8, font=("Segoe UI", 10), selectmode='browse',
-                                         bg='#f8f9fa', fg='#343a40', selectbackground='#007bff', 
-                                         selectforeground='white', borderwidth=0, highlightthickness=0)
+        # Create overview listbox with Darcula styling
+        self.overview_listbox = tk.Listbox(left_frame, height=8, 
+                                         font=(AppStyles.FONT_FAMILY, AppStyles.FONT_SIZE_DEFAULT), 
+                                         selectmode='browse')
+        AppStyles.configure_listbox(self.overview_listbox)
+        
         scrollbar_overview = ttk.Scrollbar(left_frame, orient="vertical", command=self.overview_listbox.yview)
         self.overview_listbox.configure(yscrollcommand=scrollbar_overview.set)
 
         self.overview_listbox.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         scrollbar_overview.grid(row=0, column=1, sticky=(tk.N, tk.S))
+
+        # Thin line separator between listbox and transcript view
+        separator_frame = tk.Frame(paned_window, bg=AppStyles.BORDER_COLOR, width=1)
+        paned_window.add(separator_frame, weight=0)
 
         # Right pane - Full transcript view
         right_frame = ttk.Frame(paned_window)
@@ -382,10 +394,11 @@ class CompleteWhisperKeyGUI:
         right_frame.columnconfigure(0, weight=1)
         right_frame.rowconfigure(0, weight=1)
         
-        # Create text widget for full transcript with modern styling
-        self.transcript_text = tk.Text(right_frame, height=8, font=("Segoe UI", 10), wrap=tk.WORD,
-                                     bg='#ffffff', fg='#495057', borderwidth=0, highlightthickness=0,
+        # Create text widget for full transcript with Darcula styling
+        self.transcript_text = tk.Text(right_frame, height=8, wrap=tk.WORD,
                                      padx=10, pady=10, state=tk.DISABLED)
+        AppStyles.configure_text_widget(self.transcript_text)
+        
         scrollbar_transcript = ttk.Scrollbar(right_frame, orient="vertical", command=self.transcript_text.yview)
         self.transcript_text.configure(yscrollcommand=scrollbar_transcript.set)
         
@@ -408,426 +421,329 @@ class CompleteWhisperKeyGUI:
         self.notebook.add(settings_frame, text='Settings')
         settings_frame.grid_columnconfigure(0, weight=1)
 
-        # --- General Settings ---
-        general_frame = ttk.LabelFrame(settings_frame, text="General", padding="15")
-        general_frame.grid(row=0, column=0, padx=5, pady=10, sticky="ew")
-        general_frame.grid_columnconfigure(1, weight=1)
+        # --- Hotkey Settings Section ---
+        hotkey_container = AppStyles.create_card_frame(settings_frame, padx=15, pady=15)
+        hotkey_container.grid(row=0, column=0, sticky="ew", pady=(0, 20))
+        hotkey_container.grid_columnconfigure(1, weight=1)
 
-        # --- Hotkey Settings ---
-        hotkey_frame = ttk.LabelFrame(settings_frame, text="Hotkeys", padding="15")
-        hotkey_frame.grid(row=1, column=0, padx=5, pady=10, sticky="ew")
-        hotkey_frame.grid_columnconfigure(1, weight=1)
+        hotkey_header = ttk.Label(hotkey_container, text="Hotkey Configuration", style="Header.TLabel")
+        hotkey_header.grid(row=0, column=0, columnspan=3, sticky="w", pady=(0, 15))
 
-        ttk.Label(hotkey_frame, text="Record Hotkey:").grid(row=0, column=0, sticky="w", pady=5)
-        self.hotkey_entry = ttk.Entry(hotkey_frame)
+        # Create separator line
+        separator1 = AppStyles.create_separator_line(hotkey_container)
+        separator1.grid(row=1, column=0, columnspan=3, sticky="ew", pady=(0, 15))
+
+        # Record Hotkey
+        ttk.Label(hotkey_container, text="Record Hotkey:").grid(row=2, column=0, sticky="w", pady=8, padx=(0, 10))
+        self.hotkey_entry = ttk.Entry(hotkey_container, width=30)
         self.hotkey_entry.insert(0, self.app.config.get('hotkey', ''))
-        self.hotkey_entry.grid(row=0, column=1, padx=5, sticky="ew")
-        self.record_hotkey_button = ttk.Button(hotkey_frame, text="Record", style="TButton", command=self.record_hotkey)
-        self.record_hotkey_button.grid(row=0, column=2, padx=5)
+        self.hotkey_entry.grid(row=2, column=1, padx=(0, 10), sticky="ew")
+        self.record_hotkey_button = ttk.Button(hotkey_container, text="Record", command=self.record_hotkey)
+        self.record_hotkey_button.grid(row=2, column=2, padx=(0, 0))
 
-        ttk.Label(hotkey_frame, text="Realtime Hotkey:").grid(row=1, column=0, sticky="w", pady=5)
-        self.realtime_hotkey_entry = ttk.Entry(hotkey_frame)
+        # Realtime Hotkey
+        ttk.Label(hotkey_container, text="Realtime Hotkey:").grid(row=3, column=0, sticky="w", pady=8, padx=(0, 10))
+        self.realtime_hotkey_entry = ttk.Entry(hotkey_container, width=30)
         self.realtime_hotkey_entry.insert(0, self.app.config.get('realtime_hotkey', ''))
-        self.realtime_hotkey_entry.grid(row=1, column=1, padx=5, sticky="ew")
-        self.record_realtime_hotkey_button = ttk.Button(hotkey_frame, text="Record", style="TButton", command=self.record_realtime_hotkey)
-        self.record_realtime_hotkey_button.grid(row=1, column=2, padx=5)
+        self.realtime_hotkey_entry.grid(row=3, column=1, padx=(0, 10), sticky="ew")
+        self.record_realtime_hotkey_button = ttk.Button(hotkey_container, text="Record", command=self.record_realtime_hotkey)
+        self.record_realtime_hotkey_button.grid(row=3, column=2, padx=(0, 0))
 
-        # --- Audio Device Settings ---
-        audio_frame = ttk.LabelFrame(settings_frame, text="Audio", padding="15")
-        audio_frame.grid(row=2, column=0, padx=5, pady=10, sticky="ew")
-        audio_frame.grid_columnconfigure(0, weight=1)
+        # --- Audio Device Settings Section ---
+        audio_container = AppStyles.create_card_frame(settings_frame, padx=15, pady=15)
+        audio_container.grid(row=1, column=0, sticky="ew", pady=(0, 20))
+        audio_container.grid_columnconfigure(1, weight=1)
 
-        ttk.Label(audio_frame, text="Input Device:").grid(row=0, column=0, sticky="w")
+        audio_header = ttk.Label(audio_container, text="Audio Configuration", style="Header.TLabel")
+        audio_header.grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 15))
 
-        self.audio_device_menu = ttk.Combobox(audio_frame)
-        self.audio_device_menu.grid(row=0, column=1, padx=5, pady=5, sticky="ew")
-        self.audio_device_menu.bind('<<ComboboxSelected>>', self.on_audio_device_select)
-        self.refresh_audio_devices()
+        # Create separator line
+        separator2 = AppStyles.create_separator_line(audio_container)
+        separator2.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(0, 15))
 
+        # Audio Input Device
+        ttk.Label(audio_container, text="Audio Input Device:").grid(row=2, column=0, sticky="w", pady=8, padx=(0, 10))
+        
+        # Create and populate audio device combobox
+        self.audio_device_menu = ttk.Combobox(audio_container, state="readonly", width=40)
+        self.audio_device_menu.grid(row=2, column=1, sticky="ew", padx=(0, 10))
+        self.audio_device_menu.bind("<<ComboboxSelected>>", self.on_audio_device_select)
+        
+        # Refresh button for audio devices
+        refresh_audio_btn = ttk.Button(audio_container, text="Refresh", command=self.refresh_audio_devices)
+        refresh_audio_btn.grid(row=2, column=2, padx=(0, 0))
 
-        # --- Transcription Settings ---
-        transcription_frame = ttk.LabelFrame(settings_frame, text="Transcription Models", padding="15")
-        transcription_frame.grid(row=3, column=0, padx=5, pady=10, sticky="ew")
-        transcription_frame.grid_columnconfigure(1, weight=1)
+        # --- Transcription Model Settings Section ---
+        model_container = AppStyles.create_card_frame(settings_frame, padx=15, pady=15)
+        model_container.grid(row=2, column=0, sticky="ew", pady=(0, 20))
+        model_container.grid_columnconfigure(1, weight=1)
 
-        # Recorded Transcription Model
-        ttk.Label(transcription_frame, text="Recorded Model:").grid(row=0, column=0, sticky="w", pady=5)
-        self.recorded_model_entry = ttk.Entry(transcription_frame)
-        self.recorded_model_entry.insert(0, self.app.config['transcription']['model'])
-        self.recorded_model_entry.grid(row=0, column=1, padx=5, sticky="ew")
+        model_header = ttk.Label(model_container, text="Transcription Models", style="Header.TLabel")
+        model_header.grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 15))
 
-        # Real-time Transcription Model
-        ttk.Label(transcription_frame, text="Real-time Model:").grid(row=1, column=0, sticky="w", pady=5)
-        self.realtime_model_entry = ttk.Entry(transcription_frame)
-        self.realtime_model_entry.insert(0, self.app.config.get('realtime', {}).get('model', ''))
-        self.realtime_model_entry.grid(row=1, column=1, padx=5, sticky="ew")
+        # Create separator line
+        separator3 = AppStyles.create_separator_line(model_container)
+        separator3.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(0, 15))
 
-        # --- Save Button ---
-        button_frame = ttk.Frame(settings_frame)
-        button_frame.grid(row=4, column=0, pady=20, sticky="e")
-        save_button = ttk.Button(button_frame, text="Save Settings", style="TButton", command=self.save_settings)
-        save_button.pack()
+        # OpenAI Model
+        ttk.Label(model_container, text="OpenAI Model:").grid(row=2, column=0, sticky="w", pady=8, padx=(0, 10))
+        self.openai_model_var = tk.StringVar(value=self.app.config.get('transcription', {}).get('model', 'whisper-1'))
+        openai_models = ['whisper-1']
+        self.openai_model_combo = ttk.Combobox(model_container, textvariable=self.openai_model_var, 
+                                              values=openai_models, state="readonly", width=40)
+        self.openai_model_combo.grid(row=2, column=1, sticky="ew", padx=(0, 10))
 
-    def on_audio_device_select(self, event=None):
-        """Handle selection of an audio device."""
-        try:
-            selection = self.audio_device_menu.get()
-            # Extract device ID from string like "Microphone (ID: 2)"
-            device_id_str = selection.split('ID: ')[-1].replace(')', '')
-            if device_id_str.isdigit():
-                device_id = int(device_id_str)
-                self.app.config['audio_device_index'] = device_id
-                self.update_status(f"Audio device set to ID: {device_id}")
-                logger.info(f"Audio device selection changed to index {device_id}")
-        except Exception as e:
-            logger.error(f"Error handling audio device selection: {e}", exc_info=True)
-            self.update_status("Error selecting audio device.")
+        # API Key field
+        ttk.Label(model_container, text="OpenAI API Key:").grid(row=3, column=0, sticky="w", pady=8, padx=(0, 10))
+        self.api_key_entry = ttk.Entry(model_container, show="*", width=40)
+        current_api_key = self.app.config.get('transcription', {}).get('api_key', '')
+        if current_api_key:
+            self.api_key_entry.insert(0, current_api_key)
+        self.api_key_entry.grid(row=3, column=1, sticky="ew", padx=(0, 10))
+
+        # --- Save Settings Button ---
+        save_container = ttk.Frame(settings_frame)
+        save_container.grid(row=3, column=0, sticky="ew", pady=(20, 0))
+        save_container.grid_columnconfigure(0, weight=1)
+
+        # Right-aligned large save button
+        self.save_button = ttk.Button(save_container, text="Save Settings", command=self.save_settings, width=20)
+        self.save_button.grid(row=0, column=0, sticky="e")
+
+        # Initialize audio devices
+        self.update_audio_devices()
 
     def create_transcriptions_tab(self):
         """Create transcriptions history tab with enhanced details."""
-        tab_frame = ttk.Frame(self.notebook, padding="10")
+        tab_frame = ttk.Frame(self.notebook, padding="20")
         self.notebook.add(tab_frame, text="Transcriptions")
 
         # Configure grid
         tab_frame.columnconfigure(0, weight=1)
-        tab_frame.rowconfigure(2, weight=1) # Make space for transcriptions list
+        tab_frame.rowconfigure(3, weight=1)  # Make space for transcriptions list
 
-        # Controls frame
-        controls_frame = ttk.Frame(tab_frame)
-        controls_frame.grid(row=0, column=0, sticky="ew", pady=(0, 10))
-        controls_frame.columnconfigure(1, weight=1)
+        # Header with title and right-aligned buttons
+        header_frame = ttk.Frame(tab_frame)
+        header_frame.grid(row=0, column=0, sticky="ew", pady=(0, 20))
+        header_frame.columnconfigure(0, weight=1)
 
-        ttk.Label(controls_frame, text="Transcription History", style="Header.TLabel").grid(row=0, column=0, sticky="w")
+        # Title
+        title_label = ttk.Label(header_frame, text="Transcription History", style="Header.TLabel")
+        title_label.grid(row=0, column=0, sticky="w")
 
-        # Buttons
-        button_frame = ttk.Frame(controls_frame)
+        # Top-right buttons with flat styling
+        button_frame = ttk.Frame(header_frame)
         button_frame.grid(row=0, column=1, sticky="e")
 
-        ttk.Button(button_frame, text="Copy Selected", style="TButton", command=self.copy_selected_transcription).grid(row=0, column=0, padx=(0, 5))
-        ttk.Button(button_frame, text="Refresh", style="TButton", command=self.update_recent_transcriptions).grid(row=0, column=1)
+        copy_btn = ttk.Button(button_frame, text="Copy Selected", command=self.copy_selected_transcription)
+        copy_btn.grid(row=0, column=0, padx=(0, 10))
 
-        # Search and Filter Frame
-        search_frame = ttk.Frame(tab_frame)
-        search_frame.grid(row=1, column=0, sticky="ew", pady=(0, 10))
+        refresh_btn = ttk.Button(button_frame, text="Refresh", command=self.update_recent_transcriptions)
+        refresh_btn.grid(row=0, column=1, padx=(0, 10))
+
+        # Search Field with minimalistic styling and accent border focus
+        search_container = ttk.Frame(tab_frame)
+        search_container.grid(row=1, column=0, sticky="ew", pady=(0, 15))
+        search_container.columnconfigure(0, weight=1)
+
+        search_label = ttk.Label(search_container, text="Search Transcriptions:", style="TLabel")
+        search_label.grid(row=0, column=0, sticky="w", pady=(0, 5))
+
+        search_frame = ttk.Frame(search_container)
+        search_frame.grid(row=1, column=0, sticky="ew")
         search_frame.columnconfigure(0, weight=1)
 
-        self.search_entry = ttk.Entry(search_frame)
-        self.search_entry.grid(row=0, column=0, sticky="ew", padx=(0, 5))
+        self.search_entry = ttk.Entry(search_frame, width=40)
+        self.search_entry.grid(row=0, column=0, sticky="ew", padx=(0, 10))
         self.search_entry.bind("<Return>", lambda event: self.search_transcriptions())
 
-        search_button = ttk.Button(search_frame, text="Search", style="TButton", command=self.search_transcriptions)
+        search_button = ttk.Button(search_frame, text="Search", command=self.search_transcriptions)
         search_button.grid(row=0, column=1)
 
-        # Transcriptions list
-        list_frame = ttk.Frame(tab_frame)
-        list_frame.grid(row=2, column=0, sticky="nsew")
-        list_frame.columnconfigure(0, weight=1)
-        list_frame.rowconfigure(0, weight=1)
+        # Format Toggle Buttons with proper styling
+        format_container = ttk.Frame(tab_frame)
+        format_container.grid(row=2, column=0, sticky="ew", pady=(0, 15))
 
-        # Create treeview with new columns including model
+        format_label = ttk.Label(format_container, text="Display Format:", style="TLabel")
+        format_label.grid(row=0, column=0, sticky="w", padx=(0, 15))
+
+        # Duration format toggle
+        self.duration_toggle_btn = ttk.Button(format_container, text="Duration: Seconds", 
+                                            command=self.toggle_duration_format, width=18)
+        self.duration_toggle_btn.grid(row=0, column=1, padx=(0, 10))
+
+        # Cost format toggle  
+        self.cost_toggle_btn = ttk.Button(format_container, text="Cost: Dollars", 
+                                        command=self.toggle_cost_format, width=15)
+        self.cost_toggle_btn.grid(row=0, column=2, padx=(0, 10))
+
+        # Update toggle button styles based on current state
+        self._update_format_toggle_styles()
+
+        # Transcriptions Table with enhanced Darcula styling
+        table_container = AppStyles.create_card_frame(tab_frame, padx=0, pady=0)
+        table_container.grid(row=3, column=0, sticky="nsew")
+        table_container.columnconfigure(0, weight=1)
+        table_container.rowconfigure(0, weight=1)
+
+        # Create treeview with all columns including model
         columns = ('timestamp', 'preview', 'tokens', 'cost', 'duration', 'engine', 'model')
-        self.transcriptions_tree = ttk.Treeview(list_frame, columns=columns, show='headings', height=15)
+        self.transcriptions_tree = ttk.Treeview(table_container, columns=columns, show='headings', height=15)
 
-        # Configure columns
+        # Configure column headers with clear separators
         self.transcriptions_tree.heading('timestamp', text='Timestamp')
         self.transcriptions_tree.heading('preview', text='Text Preview')
-        self.transcriptions_tree.heading('tokens', text='Tokens (In/Out)')
+        self.transcriptions_tree.heading('tokens', text='Tokens (In→Out)')  # Using right arrow as specified
         self.transcriptions_tree.heading('cost', text='Est. Cost ($)')
-        self.transcriptions_tree.heading('duration', text='Duration (s)')
+        self.transcriptions_tree.heading('duration', text='Duration')
         self.transcriptions_tree.heading('engine', text='Engine')
         self.transcriptions_tree.heading('model', text='Model')
 
-        self.transcriptions_tree.column('timestamp', width=150, anchor='w')
-        self.transcriptions_tree.column('preview', width=250, anchor='w')
-        self.transcriptions_tree.column('tokens', width=100, anchor='center')
-        self.transcriptions_tree.column('cost', width=80, anchor='e')
-        self.transcriptions_tree.column('duration', width=80, anchor='e')
+        # Configure column widths and alignment
+        self.transcriptions_tree.column('timestamp', width=180, anchor='w')
+        self.transcriptions_tree.column('preview', width=280, anchor='w')
+        self.transcriptions_tree.column('tokens', width=120, anchor='center')
+        self.transcriptions_tree.column('cost', width=100, anchor='e')
+        self.transcriptions_tree.column('duration', width=100, anchor='e')
         self.transcriptions_tree.column('engine', width=80, anchor='w')
         self.transcriptions_tree.column('model', width=120, anchor='w')
-        
-        # Configure treeview font for better readability
-        style = ttk.Style()
-        style.configure("Transcriptions.Treeview", font=("Consolas", 9))
-        self.transcriptions_tree.configure(style="Transcriptions.Treeview")
 
-        # Add scrollbar
-        tree_scrollbar = ttk.Scrollbar(list_frame, orient="vertical", command=self.transcriptions_tree.yview)
+        # Configure treeview with monospace font for consistency
+        style = ttk.Style()
+        style.configure("MonoTrans.Treeview", 
+                       font=("Consolas", 9),
+                       rowheight=28)
+        style.configure("MonoTrans.Treeview.Heading",
+                       font=("Segoe UI", 10, "bold"))
+        self.transcriptions_tree.configure(style="MonoTrans.Treeview")
+
+        # Add scrollbar with thin, minimalist design
+        tree_scrollbar = ttk.Scrollbar(table_container, orient="vertical", command=self.transcriptions_tree.yview)
         self.transcriptions_tree.configure(yscrollcommand=tree_scrollbar.set)
 
-        # Pack widgets
+        # Grid the table and scrollbar
         self.transcriptions_tree.grid(row=0, column=0, sticky="nsew")
         tree_scrollbar.grid(row=0, column=1, sticky="ns")
 
-        # Bind double-click event
+        # Bind events for interaction
         self.transcriptions_tree.bind("<Double-Button-1>", self.copy_from_tree)
 
-        # Bind column click event for sorting
+        # Bind column click events for sorting with visual indicators
         for col in self.transcriptions_tree['columns']:
             self.transcriptions_tree.heading(col, command=lambda c=col: self.sort_treeview_column(self.transcriptions_tree, c))
 
-        # Format toggle buttons
-        format_frame = ttk.Frame(tab_frame)
-        format_frame.grid(row=3, column=0, sticky="ew", pady=(10, 0))
-        
-        ttk.Label(format_frame, text="Display Format:").grid(row=0, column=0, sticky="w", padx=(0, 10))
-        
-        self.duration_toggle_btn = ttk.Button(format_frame, text="Duration: Seconds", 
-                                            command=self.toggle_duration_format, width=15)
-        self.duration_toggle_btn.grid(row=0, column=1, padx=(0, 5))
-        
-        self.cost_toggle_btn = ttk.Button(format_frame, text="Cost: Dollars", 
-                                        command=self.toggle_cost_format, width=15)
-        self.cost_toggle_btn.grid(row=0, column=2, padx=(0, 5))
-
     def create_cost_tracking_tab(self):
         """Create comprehensive cost tracking tab"""
-        tab_frame = ttk.Frame(self.notebook)
+        tab_frame = ttk.Frame(self.notebook, padding="20")
         self.notebook.add(tab_frame, text="Cost Tracking")
 
         # Configure grid
         tab_frame.columnconfigure(0, weight=1)
         tab_frame.rowconfigure(2, weight=1)
 
-        # Header with refresh button
-        header_frame = ttk.Frame(tab_frame, padding="10")
-        header_frame.grid(row=0, column=0, sticky=(tk.W, tk.E))
+        # Header with title and right-aligned buttons
+        header_frame = ttk.Frame(tab_frame)
+        header_frame.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=(0, 20))
         header_frame.columnconfigure(0, weight=1)
 
-        title_frame = ttk.Frame(header_frame)
-        title_frame.grid(row=0, column=0, sticky=(tk.W, tk.E))
-        title_frame.columnconfigure(0, weight=1)
+        # Title
+        title_label = ttk.Label(header_frame, text="Cost Tracking & Usage Analytics", style="Header.TLabel")
+        title_label.grid(row=0, column=0, sticky=tk.W)
 
-        ttk.Label(title_frame, text="Cost Tracking & Usage Analytics",
-                  font=("Segoe UI", 14, "bold")).grid(row=0, column=0, sticky=tk.W)
-
-        # Button frame for refresh and clear buttons
-        button_frame = ttk.Frame(title_frame)
+        # Top-right buttons with consistent flat styling
+        button_frame = ttk.Frame(header_frame)
         button_frame.grid(row=0, column=1, sticky=tk.E)
         
-        refresh_btn = ttk.Button(button_frame, text="Refresh Data",
-                                 command=self.refresh_costs)
-        refresh_btn.grid(row=0, column=0, padx=(0, 5))
+        refresh_btn = ttk.Button(button_frame, text="Refresh Data", command=self.refresh_costs)
+        refresh_btn.grid(row=0, column=0, padx=(0, 10))
         
-        clear_btn = ttk.Button(button_frame, text="Clear Database",
-                               command=self.clear_cost_database)
+        clear_btn = ttk.Button(button_frame, text="Clear Database", command=self.clear_cost_database)
         clear_btn.grid(row=0, column=1)
 
-        # Summary cards
-        summary_frame = ttk.Frame(tab_frame, padding="10")
-        summary_frame.grid(row=1, column=0, sticky=(tk.W, tk.E))
+        # Summary Cards with modern card styling
+        summary_container = ttk.Frame(tab_frame)
+        summary_container.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 20))
 
         # Create summary cards
-        self.create_cost_summary_cards(summary_frame)
+        self.create_cost_summary_cards(summary_container)
 
-        # Detailed breakdown
-        details_frame = ttk.LabelFrame(tab_frame, text="Detailed Usage Breakdown", padding="10")
-        details_frame.grid(row=2, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=10, pady=(0, 10))
-        details_frame.columnconfigure(0, weight=1)
-        details_frame.rowconfigure(0, weight=1)
+        # Detailed Usage Breakdown with flat modern tabs
+        breakdown_container = AppStyles.create_card_frame(tab_frame, padx=15, pady=15)
+        breakdown_container.grid(row=2, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        breakdown_container.columnconfigure(0, weight=1)
+        breakdown_container.rowconfigure(1, weight=1)
 
-        # Create notebook for time periods
-        self.cost_notebook = ttk.Notebook(details_frame)
-        self.cost_notebook.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        # Usage breakdown title
+        breakdown_title = ttk.Label(breakdown_container, text="Detailed Usage Breakdown", style="Header.TLabel")
+        breakdown_title.grid(row=0, column=0, sticky=tk.W, pady=(0, 15))
+
+        # Create notebook for time periods with flat modern tabs
+        self.cost_notebook = ttk.Notebook(breakdown_container)
+        self.cost_notebook.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
 
         # Create cost breakdown tabs
         self.create_daily_costs_tab()
         self.create_weekly_costs_tab()
         self.create_monthly_costs_tab()
 
-        # Format toggle buttons for cost tracking
-        cost_format_frame = ttk.Frame(details_frame)
-        cost_format_frame.grid(row=1, column=0, sticky="ew", pady=(10, 0))
-        
-        ttk.Label(cost_format_frame, text="Cost Format:").grid(row=0, column=0, sticky="w", padx=(0, 10))
-        
-        self.cost_tracking_toggle_btn = ttk.Button(cost_format_frame, text="Cost: Dollars", 
-                                                 command=self.toggle_cost_format, width=15)
-        self.cost_tracking_toggle_btn.grid(row=0, column=1, padx=(0, 5))
-
     def create_cost_summary_cards(self, parent):
         """Create summary cards for cost overview"""
-        # Configure grid for 3 cards
+        # Configure grid for 3 cards with proper spacing
         parent.columnconfigure(0, weight=1)
         parent.columnconfigure(1, weight=1)
         parent.columnconfigure(2, weight=1)
 
-        # Today's usage
-        today_frame = ttk.LabelFrame(parent, text="Today", padding="15")
-        today_frame.grid(row=0, column=0, sticky=(tk.W, tk.E), padx=(0, 5))
+        # Today's usage - Modern card style
+        today_card = AppStyles.create_card_frame(parent, padx=20, pady=20)
+        today_card.grid(row=0, column=0, sticky=(tk.W, tk.E), padx=(0, 10))
 
-        self.cost_labels['today_cost'] = ttk.Label(today_frame, text="$0.0000",
-                                                   font=("Segoe UI", 16, "bold"))
-        self.cost_labels['today_cost'].grid(row=0, column=0)
+        today_title = ttk.Label(today_card, text="Today", style="CardTitle.TLabel")
+        today_title.grid(row=0, column=0, sticky=tk.W, pady=(0, 8))
 
-        self.cost_labels['today_requests'] = ttk.Label(today_frame, text="0 requests",
-                                                       font=("Segoe UI", 9))
-        self.cost_labels['today_requests'].grid(row=1, column=0)
+        self.cost_labels['today_cost'] = ttk.Label(today_card, text="$0.0000", style="CardValue.TLabel")
+        self.cost_labels['today_cost'].grid(row=1, column=0, sticky=tk.W, pady=(0, 4))
 
-        # This month's usage
-        month_frame = ttk.LabelFrame(parent, text="This Month", padding="15")
-        month_frame.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=5)
+        self.cost_labels['today_requests'] = ttk.Label(today_card, text="0 requests", style="TLabel")
+        self.cost_labels['today_requests'].grid(row=2, column=0, sticky=tk.W)
 
-        self.cost_labels['month_cost'] = ttk.Label(month_frame, text="$0.0000",
-                                                   font=("Segoe UI", 16, "bold"))
-        self.cost_labels['month_cost'].grid(row=0, column=0)
+        # This month's usage - Modern card style
+        month_card = AppStyles.create_card_frame(parent, padx=20, pady=20)
+        month_card.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=(5, 5))
 
-        self.cost_labels['month_requests'] = ttk.Label(month_frame, text="0 requests",
-                                                       font=("Segoe UI", 9))
-        self.cost_labels['month_requests'].grid(row=1, column=0)
+        month_title = ttk.Label(month_card, text="This Month", style="CardTitle.TLabel")
+        month_title.grid(row=0, column=0, sticky=tk.W, pady=(0, 8))
 
-        # Total usage
-        total_frame = ttk.LabelFrame(parent, text="All Time", padding="15")
-        total_frame.grid(row=0, column=2, sticky=(tk.W, tk.E), padx=(5, 0))
+        self.cost_labels['month_cost'] = ttk.Label(month_card, text="$0.0000", style="CardValue.TLabel")
+        self.cost_labels['month_cost'].grid(row=1, column=0, sticky=tk.W, pady=(0, 4))
 
-        self.cost_labels['total_cost'] = ttk.Label(total_frame, text="$0.0000",
-                                                   font=("Segoe UI", 16, "bold"))
-        self.cost_labels['total_cost'].grid(row=0, column=0)
+        self.cost_labels['month_requests'] = ttk.Label(month_card, text="0 requests", style="TLabel")
+        self.cost_labels['month_requests'].grid(row=2, column=0, sticky=tk.W)
 
-        self.cost_labels['total_requests'] = ttk.Label(total_frame, text="0 requests",
-                                                       font=("Segoe UI", 9))
-        self.cost_labels['total_requests'].grid(row=1, column=0)
+        # All time usage - Modern card style
+        total_card = AppStyles.create_card_frame(parent, padx=20, pady=20)
+        total_card.grid(row=0, column=2, sticky=(tk.W, tk.E), padx=(10, 0))
 
-    def create_daily_costs_tab(self):
-        """Create daily cost breakdown tab"""
-        tab_frame = ttk.Frame(self.cost_notebook)
-        self.cost_notebook.add(tab_frame, text="Daily")
+        total_title = ttk.Label(total_card, text="All Time", style="CardTitle.TLabel")
+        total_title.grid(row=0, column=0, sticky=tk.W, pady=(0, 8))
 
-        # Configure grid
-        tab_frame.columnconfigure(0, weight=1)
-        tab_frame.rowconfigure(0, weight=1)
+        self.cost_labels['total_cost'] = ttk.Label(total_card, text="$0.0000", style="CardValue.TLabel")
+        self.cost_labels['total_cost'].grid(row=1, column=0, sticky=tk.W, pady=(0, 4))
 
-        # Create treeview for daily costs
-        columns = ('Date', 'Cost (USD)', 'Details', 'Last Updated')
-        self.daily_tree = ttk.Treeview(tab_frame, columns=columns, show='headings', height=15)
-
-        # Configure columns
-        self.daily_tree.heading('Date', text='Date')
-        self.daily_tree.heading('Cost (USD)', text='Cost (USD)')
-        self.daily_tree.heading('Details', text='Usage Details')
-        self.daily_tree.heading('Last Updated', text='Last Updated')
-
-        self.daily_tree.column('Date', width=100)
-        self.daily_tree.column('Cost (USD)', width=100)
-        self.daily_tree.column('Details', width=300)
-        self.daily_tree.column('Last Updated', width=150)
-        
-        # Configure treeview font for better readability
-        style = ttk.Style()
-        style.configure("Daily.Treeview", font=("Consolas", 9))
-        self.daily_tree.configure(style="Daily.Treeview")
-
-        # Add scrollbar
-        daily_scrollbar = ttk.Scrollbar(tab_frame, orient="vertical", command=self.daily_tree.yview)
-        self.daily_tree.configure(yscrollcommand=daily_scrollbar.set)
-
-        # Pack widgets
-        self.daily_tree.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
-        daily_scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
-
-        # Bind double-click for detailed view
-        self.daily_tree.bind("<Double-Button-1>", self.show_daily_details)
-
-        # Bind column click event for sorting
-        for col in self.daily_tree['columns']:
-            self.daily_tree.heading(col, command=lambda c=col: self.sort_treeview_column(self.daily_tree, c))
-
-    def create_weekly_costs_tab(self):
-        """Create weekly cost summary tab"""
-        tab_frame = ttk.Frame(self.cost_notebook)
-        self.cost_notebook.add(tab_frame, text="Weekly")
-
-        # Configure grid
-        tab_frame.columnconfigure(0, weight=1)
-        tab_frame.rowconfigure(0, weight=1)
-
-        # Create treeview for weekly costs
-        columns = ('Week', 'Total Cost', 'Avg Daily', 'Days Active')
-        self.weekly_tree = ttk.Treeview(tab_frame, columns=columns, show='headings', height=15)
-
-        # Configure columns
-        self.weekly_tree.heading('Week', text='Week of')
-        self.weekly_tree.heading('Total Cost', text='Total Cost (USD)')
-        self.weekly_tree.heading('Avg Daily', text='Avg Daily (USD)')
-        self.weekly_tree.heading('Days Active', text='Days Active')
-
-        self.weekly_tree.column('Week', width=120)
-        self.weekly_tree.column('Total Cost', width=120)
-        self.weekly_tree.column('Avg Daily', width=120)
-        self.weekly_tree.column('Days Active', width=100)
-        
-        # Configure treeview font for better readability
-        style = ttk.Style()
-        style.configure("Weekly.Treeview", font=("Consolas", 9))
-        self.weekly_tree.configure(style="Weekly.Treeview")
-
-        # Add scrollbar
-        weekly_scrollbar = ttk.Scrollbar(tab_frame, orient="vertical", command=self.weekly_tree.yview)
-        self.weekly_tree.configure(yscrollcommand=weekly_scrollbar.set)
-
-        # Pack widgets
-        self.weekly_tree.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
-        weekly_scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
-
-        # Bind column click event for sorting
-        for col in self.weekly_tree['columns']:
-            self.weekly_tree.heading(col, command=lambda c=col: self.sort_treeview_column(self.weekly_tree, c))
-
-        # Bind double-click for detailed view
-        self.weekly_tree.bind("<Double-Button-1>", self.show_weekly_details)
-
-    def create_monthly_costs_tab(self):
-        """Create monthly cost summary tab"""
-        tab_frame = ttk.Frame(self.cost_notebook)
-        self.cost_notebook.add(tab_frame, text="Monthly")
-
-        # Configure grid
-        tab_frame.columnconfigure(0, weight=1)
-        tab_frame.rowconfigure(0, weight=1)
-
-        # Create treeview for monthly costs
-        columns = ('Month', 'Total Cost', 'Days Active', 'Avg Daily', 'Trend')
-        self.monthly_tree = ttk.Treeview(tab_frame, columns=columns, show='headings', height=15)
-
-        # Configure columns
-        self.monthly_tree.heading('Month', text='Month')
-        self.monthly_tree.heading('Total Cost', text='Total Cost (USD)')
-        self.monthly_tree.heading('Days Active', text='Days Active')
-        self.monthly_tree.heading('Avg Daily', text='Avg Daily (USD)')
-        self.monthly_tree.heading('Trend', text='Trend')
-
-        self.monthly_tree.column('Month', width=100)
-        self.monthly_tree.column('Total Cost', width=120)
-        self.monthly_tree.column('Days Active', width=100)
-        self.monthly_tree.column('Avg Daily', width=120)
-        self.monthly_tree.column('Trend', width=80)
-        
-        # Configure treeview font for better readability
-        style = ttk.Style()
-        style.configure("Monthly.Treeview", font=("Consolas", 9))
-        self.monthly_tree.configure(style="Monthly.Treeview")
-
-        # Add scrollbar
-        monthly_scrollbar = ttk.Scrollbar(tab_frame, orient="vertical", command=self.monthly_tree.yview)
-        self.monthly_tree.configure(yscrollcommand=monthly_scrollbar.set)
-
-        # Pack widgets
-        self.monthly_tree.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
-        monthly_scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
-
-        # Bind column click event for sorting
-        for col in self.monthly_tree['columns']:
-            self.monthly_tree.heading(col, command=lambda c=col: self.sort_treeview_column(self.monthly_tree, c))
+        self.cost_labels['total_requests'] = ttk.Label(total_card, text="0 requests", style="TLabel")
+        self.cost_labels['total_requests'].grid(row=2, column=0, sticky=tk.W)
 
     # Event handler methods
     def manual_record(self):
         """Manually trigger recording"""
         if not self.is_recording:
+            # Start recording
             self.app.toggle_recording()
-            self.record_button.configure(text="Stop Recording", style="Recording.TButton")
+            self.record_btn.configure(text="Stop Recording", style="Recording.TButton", foreground="red")
             self.is_recording = True
         else:
+            # Stop recording
             self.app.toggle_recording()
-            self.record_button.configure(text="Start Recording", style="TButton")
+            self.record_btn.configure(text="Start Recording", style="TButton", foreground="black")
             self.is_recording = False
 
     def toggle_realtime(self):
@@ -883,7 +799,7 @@ class CompleteWhisperKeyGUI:
         if not self.billing or not self.billing.is_cost_tracking_enabled():
             self.update_status("[WARN] Cost tracking is disabled in configuration")
             return
-
+            
         def refresh_callback(success):
             def _update_gui():
                 if success:
@@ -1529,22 +1445,18 @@ class CompleteWhisperKeyGUI:
         self.duration_format_hms = not self.duration_format_hms
         self.update_transcriptions_tree()
         self.update_cost_tracking_data()
-        format_text = "HMS" if self.duration_format_hms else "Seconds"
-        if hasattr(self, 'duration_toggle_btn'):
-            self.duration_toggle_btn.configure(text=f"Duration: {format_text}")
-        self.update_status(f"Duration format changed to {format_text}")
+        
+        # Update toggle button styles
+        self._update_format_toggle_styles()
     
     def toggle_cost_format(self):
         """Toggle between dollars and cents format"""
         self.cost_format_dollars = not self.cost_format_dollars
         self.update_transcriptions_tree()
         self.update_cost_tracking_data()
-        format_text = "Dollars" if self.cost_format_dollars else "Cents"
-        if hasattr(self, 'cost_toggle_btn'):
-            self.cost_toggle_btn.configure(text=f"Cost: {format_text}")
-        if hasattr(self, 'cost_tracking_toggle_btn'):
-            self.cost_tracking_toggle_btn.configure(text=f"Cost: {format_text}")
-        self.update_status(f"Cost format changed to {format_text}")
+        
+        # Update toggle button styles
+        self._update_format_toggle_styles()
     
     def sort_treeview_column(self, treeview, col, reverse=False):
         """Sort a treeview column, with smart numeric/string sorting."""
@@ -1844,6 +1756,11 @@ class CompleteWhisperKeyGUI:
             tree.column('Cost (USD)', width=100)
             tree.column('Details', width=200)
             tree.column('Last Updated', width=150)
+            
+            # Configure treeview font for better readability
+            style = ttk.Style()
+            style.configure("Weekly.Treeview", font=("Consolas", 9))
+            tree.configure(style="Weekly.Treeview")
 
             # Add scrollbar
             scrollbar = ttk.Scrollbar(main_frame, orient="vertical", command=tree.yview)
@@ -2003,3 +1920,163 @@ class CompleteWhisperKeyGUI:
 
         except Exception as e:
             logger.error(f"Error updating monthly costs tree: {e}")
+
+    def create_daily_costs_tab(self):
+        """Create daily cost breakdown tab"""
+        tab_frame = ttk.Frame(self.cost_notebook, padding="15")
+        self.cost_notebook.add(tab_frame, text="Daily")
+
+        # Configure grid
+        tab_frame.columnconfigure(0, weight=1)
+        tab_frame.rowconfigure(0, weight=1)
+
+        # Create treeview for daily costs with Darcula styling
+        columns = ('Date', 'Cost (USD)', 'Details', 'Last Updated')
+        self.daily_tree = ttk.Treeview(tab_frame, columns=columns, show='headings', height=15)
+
+        # Configure column headers
+        self.daily_tree.heading('Date', text='Date')
+        self.daily_tree.heading('Cost (USD)', text='Cost (USD)')
+        self.daily_tree.heading('Details', text='Usage Details')
+        self.daily_tree.heading('Last Updated', text='Last Updated')
+
+        # Configure column widths and alignment
+        self.daily_tree.column('Date', width=140, anchor='w')
+        self.daily_tree.column('Cost (USD)', width=120, anchor='e')
+        self.daily_tree.column('Details', width=200, anchor='w')
+        self.daily_tree.column('Last Updated', width=180, anchor='w')
+        
+        # Configure treeview with monospace font for consistency
+        style = ttk.Style()
+        style.configure("Daily.Treeview", 
+                       font=("Consolas", 9),
+                       rowheight=26)
+        style.configure("Daily.Treeview.Heading",
+                       font=("Segoe UI", 10, "bold"))
+        self.daily_tree.configure(style="Daily.Treeview")
+
+        # Add scrollbar
+        daily_scrollbar = ttk.Scrollbar(tab_frame, orient="vertical", command=self.daily_tree.yview)
+        self.daily_tree.configure(yscrollcommand=daily_scrollbar.set)
+
+        # Grid widgets
+        self.daily_tree.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        daily_scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
+
+        # Bind double-click for detailed view
+        self.daily_tree.bind("<Double-Button-1>", self.show_daily_details)
+
+        # Bind column click event for sorting
+        for col in self.daily_tree['columns']:
+            self.daily_tree.heading(col, command=lambda c=col: self.sort_treeview_column(self.daily_tree, c))
+
+    def create_weekly_costs_tab(self):
+        """Create weekly cost summary tab"""
+        tab_frame = ttk.Frame(self.cost_notebook, padding="15")
+        self.cost_notebook.add(tab_frame, text="Weekly")
+
+        # Configure grid
+        tab_frame.columnconfigure(0, weight=1)
+        tab_frame.rowconfigure(0, weight=1)
+
+        # Create treeview for weekly costs with Darcula styling
+        columns = ('Week', 'Total Cost', 'Avg Daily', 'Days Active')
+        self.weekly_tree = ttk.Treeview(tab_frame, columns=columns, show='headings', height=15)
+
+        # Configure column headers
+        self.weekly_tree.heading('Week', text='Week of')
+        self.weekly_tree.heading('Total Cost', text='Total Cost (USD)')
+        self.weekly_tree.heading('Avg Daily', text='Avg Daily (USD)')
+        self.weekly_tree.heading('Days Active', text='Days Active')
+
+        # Configure column widths and alignment
+        self.weekly_tree.column('Week', width=140, anchor='w')
+        self.weekly_tree.column('Total Cost', width=140, anchor='e')
+        self.weekly_tree.column('Avg Daily', width=140, anchor='e')
+        self.weekly_tree.column('Days Active', width=120, anchor='center')
+        
+        # Configure treeview with monospace font for consistency
+        style = ttk.Style()
+        style.configure("Weekly.Treeview", 
+                       font=("Consolas", 9),
+                       rowheight=26)
+        style.configure("Weekly.Treeview.Heading",
+                       font=("Segoe UI", 10, "bold"))
+        self.weekly_tree.configure(style="Weekly.Treeview")
+
+        # Add scrollbar
+        weekly_scrollbar = ttk.Scrollbar(tab_frame, orient="vertical", command=self.weekly_tree.yview)
+        self.weekly_tree.configure(yscrollcommand=weekly_scrollbar.set)
+
+        # Grid widgets
+        self.weekly_tree.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        weekly_scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
+
+        # Bind column click event for sorting
+        for col in self.weekly_tree['columns']:
+            self.weekly_tree.heading(col, command=lambda c=col: self.sort_treeview_column(self.weekly_tree, c))
+
+        # Bind double-click for detailed view
+        self.weekly_tree.bind("<Double-Button-1>", self.show_weekly_details)
+
+    def create_monthly_costs_tab(self):
+        """Create monthly cost summary tab"""
+        tab_frame = ttk.Frame(self.cost_notebook, padding="15")
+        self.cost_notebook.add(tab_frame, text="Monthly")
+
+        # Configure grid
+        tab_frame.columnconfigure(0, weight=1)
+        tab_frame.rowconfigure(0, weight=1)
+
+        # Create treeview for monthly costs with Darcula styling
+        columns = ('Month', 'Total Cost', 'Days Active', 'Avg Daily', 'Trend')
+        self.monthly_tree = ttk.Treeview(tab_frame, columns=columns, show='headings', height=15)
+
+        # Configure column headers
+        self.monthly_tree.heading('Month', text='Month')
+        self.monthly_tree.heading('Total Cost', text='Total Cost (USD)')
+        self.monthly_tree.heading('Days Active', text='Days Active')
+        self.monthly_tree.heading('Avg Daily', text='Avg Daily (USD)')
+        self.monthly_tree.heading('Trend', text='Trend')
+
+        # Configure column widths and alignment
+        self.monthly_tree.column('Month', width=120, anchor='w')
+        self.monthly_tree.column('Total Cost', width=140, anchor='e')
+        self.monthly_tree.column('Days Active', width=120, anchor='center')
+        self.monthly_tree.column('Avg Daily', width=140, anchor='e')
+        self.monthly_tree.column('Trend', width=100, anchor='center')
+        
+        # Configure treeview with monospace font for consistency
+        style = ttk.Style()
+        style.configure("Monthly.Treeview", 
+                       font=("Consolas", 9),
+                       rowheight=26)
+        style.configure("Monthly.Treeview.Heading",
+                       font=("Segoe UI", 10, "bold"))
+        self.monthly_tree.configure(style="Monthly.Treeview")
+
+        # Add scrollbar
+        monthly_scrollbar = ttk.Scrollbar(tab_frame, orient="vertical", command=self.monthly_tree.yview)
+        self.monthly_tree.configure(yscrollcommand=monthly_scrollbar.set)
+
+        # Grid widgets
+        self.monthly_tree.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        monthly_scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
+
+        # Bind column click event for sorting
+        for col in self.monthly_tree['columns']:
+            self.monthly_tree.heading(col, command=lambda c=col: self.sort_treeview_column(self.monthly_tree, c))
+
+    def _update_format_toggle_styles(self):
+        """Update format toggle button styles based on current state"""
+        # Duration toggle styling
+        if self.duration_format_hms:
+            self.duration_toggle_btn.configure(style="ToggleSelected.TButton", text="Duration: HMS")
+        else:
+            self.duration_toggle_btn.configure(style="Toggle.TButton", text="Duration: Seconds")
+
+        # Cost toggle styling
+        if self.cost_format_dollars:
+            self.cost_toggle_btn.configure(style="ToggleSelected.TButton", text="Cost: Dollars")
+        else:
+            self.cost_toggle_btn.configure(style="Toggle.TButton", text="Cost: Cents")
